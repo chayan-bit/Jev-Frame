@@ -4,6 +4,7 @@ import asyncio
 import inspect
 import uuid
 from collections.abc import Awaitable, Callable, Mapping, Sequence
+from contextvars import ContextVar
 from dataclasses import dataclass, fields, is_dataclass, replace
 from enum import Enum
 from types import MappingProxyType
@@ -22,6 +23,7 @@ from .definitions import (
     AcceptanceRecord,
     AcceptanceStatus,
     AgentDefinition,
+    Binding,
     CandidateBinding,
     CandidateProvider,
     CandidateSet,
@@ -86,6 +88,7 @@ from .policy import (
 from .state import (
     AcceptanceEvidence,
     Derivation,
+    Evidence,
     EvidenceStore,
     ExecutionReference,
     ExecutionState,
@@ -119,6 +122,30 @@ class RuntimeProvider(DecisionProvider, Protocol):
     pass
 
 
+@dataclass(frozen=True, slots=True)
+class ChildRunPolicy:
+    scope: str
+    export_evidence: tuple[str, ...] = ()
+    read_evidence: tuple[str, ...] = ()
+    host_dependencies: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if type(self.scope) is not str or not self.scope:
+            raise RuntimeConfigurationError("child scope must be a non-empty string")
+        for name in ("export_evidence", "read_evidence", "host_dependencies"):
+            values = getattr(self, name)
+            if len(values) != len(set(values)) or any(
+                type(value) is not str or not value for value in values
+            ):
+                raise RuntimeConfigurationError(
+                    f"child {name} must contain unique non-empty names"
+                )
+        if not set(self.read_evidence).issubset(self.export_evidence):
+            raise RuntimeConfigurationError(
+                "child read evidence must be permitted by the parent export set"
+            )
+
+
 @dataclass(slots=True)
 class _RunState:
     store: EvidenceStore
@@ -130,6 +157,13 @@ class _RunState:
     investigation_fingerprints: set[str]
     statuses: dict[str, NodeStatus]
     usages: list[Usage]
+
+
+@dataclass(slots=True)
+class _RunFrame:
+    context: RunContext
+    state: _RunState
+    imported_dependencies: dict[str, tuple[str, ...]]
 
 
 class _RunUnresolved(Exception):
@@ -329,6 +363,10 @@ class Runtime:
             event_log=self.event_log,
         )
         self._results: dict[str, RunResult[Any]] = {}
+        self._run_frame: ContextVar[_RunFrame | None] = ContextVar(
+            f"jev_frame_run_{id(self)}", default=None
+        )
+        self._child_functions: set[Callable[..., Any]] = set()
 
     @property
     def events(self) -> tuple[JevEvent, ...]:
@@ -336,6 +374,222 @@ class Runtime:
 
     def result_for(self, run_id: str) -> RunResult[Any] | None:
         return self._results.get(run_id)
+
+    def agent_as_tool(
+        self,
+        definition: AgentDefinition[InputT, OutputT],
+        *,
+        input_binding: Binding,
+        output_evidence: str,
+        policy: ChildRunPolicy,
+        tool_id: str | None = None,
+        purpose: str | None = None,
+        timeout: float = 30.0,
+    ) -> Tool:
+        """Expose one definition as a typed capability of this same runtime."""
+
+        if not isinstance(definition, AgentDefinition):
+            raise RuntimeConfigurationError("child definition must be an agent")
+        if not isinstance(policy, ChildRunPolicy):
+            raise RuntimeConfigurationError("child policy must use ChildRunPolicy")
+        identifier = tool_id or f"agent:{definition.id}"
+        description = purpose or f"Run the {definition.id} specialist."
+
+        async def invoke(inputs: Any) -> Any:
+            return await self._run_child(
+                definition,
+                inputs,
+                policy,
+                tool_id=identifier,
+            )
+
+        invoke.__annotations__ = {
+            "inputs": definition.input_type,
+            "return": definition.output_type,
+        }
+        tool = Tool(
+            identifier,
+            definition.version,
+            description,
+            invoke,
+            {"inputs": input_binding},
+            effect=ToolEffect.PURE,
+            timeout=timeout,
+            requires_evidence=policy.read_evidence,
+            produces_evidence=(output_evidence,),
+            scope_requirements=("scope",),
+        )
+        self._child_functions.add(tool.function)
+        return tool
+
+    async def _run_child(
+        self,
+        definition: AgentDefinition[InputT, OutputT],
+        inputs: InputT,
+        policy: ChildRunPolicy,
+        *,
+        tool_id: str,
+    ) -> OutputT:
+        frame = self._run_frame.get()
+        if frame is None:
+            raise RuntimeConfigurationError(
+                "an agent capability must run inside its owning Runtime"
+            )
+        parent = frame.context
+        if policy.scope != parent.scope:
+            raise _RunUnresolved(
+                Unresolved(
+                    UnresolvedReason.PERMISSION_DENIAL,
+                    (definition.id,),
+                    "a child cannot widen or change its parent scope",
+                    attempted_actions=(tool_id,),
+                    needed=policy.scope,
+                )
+            )
+        if definition.id in parent.definition_ancestry:
+            raise _RunUnresolved(
+                Unresolved(
+                    UnresolvedReason.NO_PROGRESS,
+                    (definition.id,),
+                    "an active child-definition cycle was rejected",
+                    attempted_actions=(tool_id,),
+                    needed=definition.id,
+                )
+            )
+        missing_dependencies = [
+            key
+            for key in policy.host_dependencies
+            if key not in parent.host_dependencies
+        ]
+        if missing_dependencies:
+            raise _RunUnresolved(
+                Unresolved(
+                    UnresolvedReason.PERMISSION_DENIAL,
+                    tuple(missing_dependencies),
+                    "a child requested unavailable host dependencies",
+                    attempted_actions=(tool_id,),
+                    needed=missing_dependencies[0],
+                )
+            )
+        depth = parent.child_depth + 1
+        parent_run_id = parent.run_id
+        assert parent_run_id is not None
+        child_run_id = f"{parent_run_id}:child:{tool_id}"
+        ledger = self._ledger_for(parent)
+        await ledger.admit_child_run(
+            child_run_id,
+            depth,
+            deadline=parent.deadline,
+            clock=parent.clock,
+        )
+        child_store = EvidenceStore(parent.clock)
+        for record in frame.state.store.project(
+            policy.read_evidence, scope=parent.scope
+        ):
+            child_store.add(record)
+        child_context = RunContext(
+            parent.scope,
+            parent.deadline,
+            parent.limits,
+            host_dependencies={
+                key: parent.host_dependencies[key] for key in policy.host_dependencies
+            },
+            authority_context=parent.authority_context,
+            clock=parent.clock,
+            event_sink=parent.event_sink,
+            evidence_session=child_store,
+            run_id=child_run_id,
+            correlation_id=parent.correlation_id,
+            parent_operation_id=f"{parent_run_id}:tool:{tool_id}",
+            definition_ancestry=parent.definition_ancestry,
+            child_depth=depth,
+        )
+        try:
+            result = await self.run(definition, inputs, child_context)
+        except asyncio.CancelledError:
+            cancelled = self.result_for(child_run_id)
+            if cancelled is not None:
+                self._absorb_child_result(
+                    tool_id, child_run_id, cancelled, child_store, frame
+                )
+            raise
+        self._absorb_child_result(tool_id, child_run_id, result, child_store, frame)
+        if result.status is TerminalStatus.COMPLETED:
+            return cast(OutputT, result.value)
+        if result.status is TerminalStatus.UNRESOLVED:
+            unresolved = result.unresolved[0]
+            raise _RunUnresolved(
+                replace(
+                    unresolved,
+                    detail=f"child {definition.id}: {unresolved.detail}",
+                    attempted_actions=(*unresolved.attempted_actions, tool_id),
+                )
+            )
+        raise _ToolFailure(f"child {definition.id} failed")
+
+    def _absorb_child_result(
+        self,
+        tool_id: str,
+        child_run_id: str,
+        result: RunResult[Any],
+        child_store: EvidenceStore,
+        frame: _RunFrame,
+    ) -> None:
+        imported = self._import_child_evidence(
+            child_run_id, child_store, frame.state.store
+        )
+        frame.imported_dependencies[tool_id] = imported
+        frame.state.usages.append(result.usage)
+        for index, value in enumerate(result.partial_findings):
+            frame.state.findings[f"{tool_id}:partial:{index}"] = value
+
+    @staticmethod
+    def _import_child_evidence(
+        child_run_id: str,
+        child_store: EvidenceStore,
+        parent_store: EvidenceStore,
+    ) -> tuple[str, ...]:
+        parent_ids = {record.id for record in parent_store.records}
+        records = tuple(
+            record for record in child_store.records if record.id not in parent_ids
+        )
+        if any(
+            reference in parent_ids
+            for record in records
+            for reference in record.supersedes
+        ):
+            raise _RunUnresolved(
+                Unresolved(
+                    UnresolvedReason.PERMISSION_DENIAL,
+                    (child_run_id,),
+                    "a child cannot supersede parent evidence",
+                    needed="new_parent_run",
+                )
+            )
+        identifiers = {
+            record.id: f"{child_run_id}:evidence:{record.id}" for record in records
+        }
+        imported: list[str] = []
+        for record in records:
+            copied = replace(
+                record,
+                id=identifiers[record.id],
+                dependencies=tuple(
+                    identifiers.get(reference, reference)
+                    for reference in record.dependencies
+                ),
+                supersedes=tuple(
+                    identifiers.get(reference, reference)
+                    for reference in record.supersedes
+                ),
+                conflicts_with=tuple(
+                    identifiers.get(reference, reference)
+                    for reference in record.conflicts_with
+                ),
+            )
+            parent_store.add(cast(Evidence, copied))
+            imported.append(copied.id)
+        return tuple(imported)
 
     def _ledger_for(self, context: RunContext) -> UsageLedger:
         ledger = self._decision_client._ledger_for(context)
@@ -1191,50 +1445,67 @@ class Runtime:
             and tool.mutation.idempotency_parameter is not None
         ):
             operation_id = arguments[tool.mutation.idempotency_parameter]
+        frame = _RunFrame(context, state, {})
+        token = self._run_frame.set(frame)
         try:
-            if tool.effect is ToolEffect.MUTATION:
-                value = await self._execute_mutation(
-                    tool,
-                    node,
-                    inputs,
-                    arguments,
-                    dependencies,
-                    context,
-                    state,
-                )
-            else:
-                value = await self._run_read_operation(
-                    operation_id=operation_id,
+            try:
+                if tool.effect is ToolEffect.MUTATION:
+                    value = await self._execute_mutation(
+                        tool,
+                        node,
+                        inputs,
+                        arguments,
+                        dependencies,
+                        context,
+                        state,
+                    )
+                elif tool.function in self._child_functions:
+                    value = await self._call(
+                        tool.function,
+                        arguments,
+                        blocking=False,
+                        timeout=min(tool.timeout, context.deadline - context.clock()),
+                    )
+                else:
+                    value = await self._run_read_operation(
+                        operation_id=operation_id,
+                        definition_id=tool.id,
+                        node_id=node.id,
+                        function=tool.function,
+                        arguments=arguments,
+                        blocking=tool.blocking,
+                        timeout=tool.timeout,
+                        context=context,
+                    )
+                value = validate_value(tool.output_type, value, f"{tool.id} output")
+            except asyncio.CancelledError:
+                raise
+            except (AdmissionError, _RunUnresolved):
+                raise
+            except Exception as error:
+                diagnostic = diagnostic_for_error(
+                    error,
                     definition_id=tool.id,
                     node_id=node.id,
-                    function=tool.function,
-                    arguments=arguments,
-                    blocking=tool.blocking,
-                    timeout=tool.timeout,
-                    context=context,
+                    source_path=("tools", tool.id),
                 )
-            value = validate_value(tool.output_type, value, f"{tool.id} output")
-        except asyncio.CancelledError:
-            raise
-        except (AdmissionError, _RunUnresolved):
-            raise
-        except Exception as error:
-            diagnostic = diagnostic_for_error(
-                error,
-                definition_id=tool.id,
-                node_id=node.id,
-                source_path=("tools", tool.id),
-            )
-            self._emit(
-                context,
-                EventKind.OPERATION_FAILED,
-                operation_id=operation_id,
-                definition_id=tool.id,
-                question_id=node.id,
-                reason_code=diagnostic.code,
-                data={"diagnostic": diagnostic.to_dict()},
-            )
-            raise _ToolFailure("tool execution failed") from error
+                self._emit(
+                    context,
+                    EventKind.OPERATION_FAILED,
+                    operation_id=operation_id,
+                    definition_id=tool.id,
+                    question_id=node.id,
+                    reason_code=diagnostic.code,
+                    data={"diagnostic": diagnostic.to_dict()},
+                )
+                raise _ToolFailure("tool execution failed") from error
+        finally:
+            self._run_frame.reset(token)
+
+        dependencies = (
+            *dependencies,
+            *frame.imported_dependencies.get(tool.id, ()),
+        )
 
         outputs: Mapping[str, Any]
         if len(tool.produces_evidence) == 1:
@@ -1606,6 +1877,7 @@ class Runtime:
             run_id=run_id,
             correlation_id=context.correlation_id or run_id,
             evidence_session=store,
+            definition_ancestry=(*context.definition_ancestry, definition.id),
         )
         self._ledger_for(run_context)
         for request in self.clarifications:

@@ -1283,3 +1283,12 @@ At every substantive stopping point, update a compact continuation entry in `.co
 - Schema boundary: only closed finite JSON Schema structures that map losslessly to the frozen type subset are accepted; foreign mutations require an application-authored Jev `Tool` because their receipt and reconciliation contract cannot be inferred from schemas.
 - Verification: focused offline checks use a fake configured MCP session and a real LangChain tool with no remote service, and cover missing semantics, scope isolation, truncation, no-fit, bounded expansion, malformed schemas, stale versions, strict runtime dispatch, errors and cancellation.
 - Remaining gates: no real MCP server, remote framework service, credentials, business mutation, semantic catalog selection, publication, or deployment was exercised or authorized.
+
+### JF-15 typed composition checkpoint — 2026-09-19
+
+- Objective: expose an `AgentDefinition` as a typed capability that reuses the same runtime while isolating child evidence and bounding shared authority, depth, count, deadline and usage.
+- Decisions: child scope and authority equal the parent's values, host dependencies and evidence are explicit allowlists, only the child read/export intersection is projected, active definition ancestry rejects cycles, and imported evidence receives run-scoped identities.
+- Accounting: child wrappers admit a child identity but hold no operation or semaphore reservation, underlying provider, tool and write attempts remain in the shared atomic ledger, and child usage aggregates are added once to the parent result rather than to the ledger again.
+- Outcomes: completed child values enter normal parent evidence, unresolved findings remain partial, conflicting specialists remain separate, child attempts cannot supersede parent evidence, and cancelled ambiguous effects import their `OUTCOME_UNKNOWN` execution references before cancellation propagates.
+- Verification: focused synthetic tests cover exact scope and evidence intersection, cycles, depth and count exhaustion, one-slot execution, concurrent attempt identities, contradictory findings, parent completion rejection, unresolved provenance, cancellation and an admitted synthetic child mutation with an unknown outcome.
+- Remaining gates: no live provider, consequential real effect, distributed worker, durable cross-run resume, publication, or deployment was exercised or authorized.

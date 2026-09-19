@@ -22,6 +22,10 @@ class DeadlineExceededError(AdmissionError):
     pass
 
 
+class ChildRunLimitError(BudgetExhaustedError):
+    pass
+
+
 class UsageMeasurementKind(str, Enum):
     OBSERVED = "observed"
     ESTIMATED = "estimated"
@@ -58,11 +62,14 @@ class LedgerSnapshot:
     tool_attempts: int
     investigation_steps: int
     writes: int
+    child_runs: int
+    max_child_depth: int
     active_operations: int
     attempt_ids: tuple[str, ...]
     tool_attempt_ids: tuple[str, ...]
     investigation_ids: tuple[str, ...]
     write_ids: tuple[str, ...]
+    child_run_ids: tuple[str, ...]
     measurements: tuple[UsageMeasurement, ...]
 
 
@@ -78,6 +85,7 @@ class UsageLedger:
         self._tool_attempts: set[str] = set()
         self._investigations: set[str] = set()
         self._writes: set[str] = set()
+        self._child_runs: dict[str, int] = {}
         self._active: set[str] = set()
         self._operations: set[str] = set()
         self._measurements: dict[
@@ -206,6 +214,31 @@ class UsageLedger:
                 raise BudgetExhaustedError("investigation step limit exhausted")
             self._investigations.add(investigation_id)
 
+    async def admit_child_run(
+        self,
+        run_id: str,
+        depth: int,
+        *,
+        deadline: float,
+        clock: Callable[[], float],
+    ) -> None:
+        if type(run_id) is not str or not run_id:
+            raise ValueError("child run id must be a non-empty string")
+        if type(depth) is not int or depth < 1:
+            raise ValueError("child depth must be a positive integer")
+        self._check_deadline(deadline, clock)
+        async with self._lock:
+            previous = self._child_runs.get(run_id)
+            if previous is not None:
+                if previous != depth:
+                    raise AdmissionError("a child run identity changed depth")
+                return
+            if depth > self.limits.child_depth:
+                raise ChildRunLimitError("child depth limit exhausted")
+            if len(self._child_runs) >= self.limits.child_runs:
+                raise ChildRunLimitError("child run count limit exhausted")
+            self._child_runs[run_id] = depth
+
     async def record_estimate(
         self,
         operation_id: str,
@@ -272,10 +305,13 @@ class UsageLedger:
                 len(self._tool_attempts),
                 len(self._investigations),
                 len(self._writes),
+                len(self._child_runs),
+                max(self._child_runs.values(), default=0),
                 len(self._active),
                 tuple(self._attempt_questions),
                 tuple(self._tool_attempts),
                 tuple(self._investigations),
                 tuple(self._writes),
+                tuple(self._child_runs),
                 tuple(self._measurements.values()),
             )

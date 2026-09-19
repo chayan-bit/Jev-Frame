@@ -527,6 +527,15 @@ Exchange results and evidence references rather than free-form conversations by 
 Child runs inherit narrower-or-equal authority and a shared overall budget.
 Bound concurrency, propagate cancellation, detect cycles, and preserve conflicting results.
 
+`Runtime.agent_as_tool` wraps an existing `AgentDefinition` as an ordinary typed `Tool` whose call reuses the same runtime, provider adapter, ledger, deadline, authorizer, and cancellation chain.
+`ChildRunPolicy` names the exact child scope, the evidence the parent may export, the subset the child may read, and the host-dependency keys it may inherit.
+Initial scope intersection is deliberately conservative: the child must use the parent's exact scope and authority context, and it cannot supply or widen either value.
+The runtime projects only permitted current evidence into an isolated child store, passes only declared host dependencies, and imports new child records under run-scoped identities with their dependencies and conflicts intact.
+A child cannot supersede parent evidence, and an unresolved or cancelled child retains imported partial findings and uncertain execution records without completing the parent.
+The shared ledger admits each child identity once, enforces total child-count and depth limits, and counts underlying provider, tool, and write attempts only where they actually run.
+The parent wrapper does not reserve an operation slot while awaiting the child, so a concurrency limit of one remains usable by the child's own work.
+Active definition ancestry rejects recursive re-entry, while the parent's completion policy remains the final acceptance boundary for compatible or conflicting child results.
+
 ### LLM planning and generation
 
 An LLM may be the primary planner throughout a run, a specialist called by Jev, or an optional fallback.
@@ -596,6 +605,7 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `tests/test_inspection.py` | Offline JF-07 correlation, redaction, exact projection, diagnostic, sink-failure, and cancellation checks |
 | `tests/test_investigation.py` | Offline JF-11 expansion, selective reevaluation, conflict, no-progress, scope, budget, and clarification checks |
 | `tests/test_capabilities.py` | Offline JF-14 schema import, scope, version, discovery, MCP-session, dispatch, error, and cancellation checks |
+| `tests/test_composition.py` | Offline JF-15 child scope, evidence, ancestry, limits, accounting, conflict, cancellation, and uncertain-effect checks |
 | `tests/test_packages.py` | Offline JF-08 package reuse, binding validation, evaluator isolation, and version-identity checks |
 | `tests/test_policy.py` | Offline JF-10 acceptance, authorization, revalidation, receipt, reconciliation, and cancellation checks |
 | `tests/test_runtime.py` | Offline JF-09 scheduling, isolation, completion, stale-input, failure, and cancellation checks |
@@ -614,6 +624,7 @@ JF-10 implements guarded mutation dispatch against synthetic services without cl
 JF-11 implements deterministic read-only investigation and host-linked typed clarification without a universal value-of-information model, automatic messaging, or durable core resume.
 JF-12 and JF-13 implement optional LangChain, LangGraph, and Pydantic AI boundaries with offline framework doubles while preserving host loop ownership.
 JF-14 implements finite scoped discovery and explicit read-only host-tool import without scanning packages, opening MCP sessions, or inferring authority from schemas.
+JF-15 implements typed specialist composition through the shared runtime without recursive autonomous hierarchies, distributed workers, or cross-run memory.
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
 Remaining extended capabilities stay assigned to later issues.
 The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.

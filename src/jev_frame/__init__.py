@@ -128,6 +128,7 @@ from .investigation import (  # noqa: F401
 from .limits import (  # noqa: F401
     AdmissionError,
     BudgetExhaustedError,
+    ChildRunLimitError,
     DeadlineExceededError,
     LedgerSnapshot,
     UsageLedger,
@@ -176,6 +177,7 @@ from .provider import (  # noqa: F401
 )
 from .runtime import (  # noqa: F401
     ApplicabilityCheck,
+    ChildRunPolicy,
     CompletionCheck,
     NodeStatus,
     Runtime,

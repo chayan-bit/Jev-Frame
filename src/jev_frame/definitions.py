@@ -931,6 +931,8 @@ class RunContext:
     run_id: str | None = None
     correlation_id: str | None = None
     parent_operation_id: str | None = None
+    definition_ancestry: tuple[str, ...] = ()
+    child_depth: int = 0
 
     def __post_init__(self) -> None:
         _text(self.scope, "run scope")
@@ -953,6 +955,14 @@ class RunContext:
         ):
             if value is not None:
                 _text(value, name)
+        if len(self.definition_ancestry) != len(set(self.definition_ancestry)) or any(
+            type(value) is not str or not value for value in self.definition_ancestry
+        ):
+            raise DefinitionError(
+                "definition ancestry must contain unique non-empty identifiers"
+            )
+        if type(self.child_depth) is not int or self.child_depth < 0:
+            raise DefinitionError("child depth must be a nonnegative integer")
         object.__setattr__(
             self, "host_dependencies", MappingProxyType(dict(self.host_dependencies))
         )
