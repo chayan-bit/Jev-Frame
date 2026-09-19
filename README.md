@@ -2,9 +2,9 @@
 
 A proposed Python framework for building Jev agents and integrating Jev decisions into existing LLM agents.
 
-**Status: JF-02 package foundations implemented; evidence state is next.**
-The local package exposes strict definitions, bindings, contexts, usage, and result contracts.
-It does not yet implement evidence storage, compilation, provider calls, decision operations, scheduling, or executable examples.
+**Status: JF-03 evidence and candidate state implemented; the compiler is next.**
+The local package exposes strict definitions, bindings, contexts, usage and result contracts, plus run-local evidence provenance, candidate snapshots, scoped projection, and selective invalidation.
+It does not yet implement compilation, provider calls, decision operations, scheduling, or executable examples.
 This is an independent project, not an official TypeSafe product.
 
 ## Local development
@@ -79,7 +79,8 @@ Advanced applications should be able to control candidate providers, decision de
 ## Frozen initial contract
 
 This section fixes the JF-01 contract surface.
-JF-02 implements its definition, binding, context, usage, and result types; later issues implement the decision and runtime entry points shown below.
+JF-02 implements its definition, binding, context, usage, and result types, and JF-03 implements the shared evidence and candidate state.
+Later issues implement the decision and runtime entry points shown below.
 
 ### Compatibility baseline
 
@@ -326,7 +327,7 @@ These features expand what an application can compose around Jev without changin
 
 ## Public concept responsibilities
 
-These concepts summarize the frozen initial API responsibilities; their implementations begin in JF-02.
+These concepts summarize the frozen initial API responsibilities; their implementations begin in JF-02 and JF-03.
 
 | Concept | Developer responsibility | Framework responsibility |
 |---|---|---|
@@ -386,6 +387,10 @@ Retrieve possible records, source values, capabilities, or approved plan templat
 Preserve retrieval scope, truncation, source version, and a way to expand the search.
 Offer an explicit outcome when no candidate fits.
 Do not hide the expected decision inside candidate metadata.
+`CandidateSet` is an immutable scoped snapshot with ordered candidate identities, descriptions, typed values, source versions, query and retrieval metadata, coverage, and optional expansion provenance.
+Coverage is one of complete, truncated, unknown, or failed; failed retrieval is distinct from a successful no-fit selection.
+The reserved `__jev_frame_no_fit__` key cannot collide with a real candidate, and selecting it preserves the snapshot's coverage instead of claiming global absence.
+Candidate fingerprints include order and semantic descriptions as well as typed values and source versions.
 
 ### Evidence state
 
@@ -393,6 +398,11 @@ Retain source observations, exact derived values, model judgments, and approved 
 Build compact views for each decision while preserving relevant contradictions and links to originals.
 Invalidate dependent judgments when their evidence, policy, model, or candidate set changes.
 Reuse data only within compatible scope and authorization boundaries.
+`EvidenceStore` keeps append-only observations, derivations, model judgments, acceptance evidence, and execution references with explicit scope, source, version, dependency, supersession, and conflict links.
+Projection validates scope and freshness at use time, includes transitive provenance and inspectable contradictory history, and fails rather than silently dropping required records when a view limit is too small.
+`SourceField` and half-open `SourceSpan` bindings retain exact source identity; span offsets use Python Unicode code points.
+Stable canonical serialization and reverse dependency indexes support deterministic fingerprints and selective transitive invalidation.
+A completed execution reference remains a historical fact when an input changes, while later reasoning that depends on that effect becomes stale.
 
 ### Scheduler
 
@@ -469,14 +479,17 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `pyproject.toml` | Local package metadata and direct dependency declarations |
 | `uv.lock` | Reproducible project dependency resolution |
 | `src/jev_frame/definitions.py` | Strict public definitions, bindings, contexts, usage, and results |
+| `src/jev_frame/state.py` | Immutable candidate snapshots, provenance records, scoped views, fingerprints, and invalidation |
 | `src/jev_frame/__init__.py` | Small public export surface |
 | `tests/test_definitions.py` | Offline JF-02 behavior and failure checks |
+| `tests/test_state.py` | Offline JF-03 candidate and evidence-state checks |
 
 The [implementation plan for Sol](IMPLEMENTATION_PLAN.md) defines the frozen public contracts, implementation sequence, behavioral checks, and delivery gates for this design.
 JF-01 froze the names and interfaces above after read-only compatibility checks; later changes require an explicit synchronized contract revision.
 JF-02 implements the package foundations and typed definitions without skipping ahead to provider or runtime behavior.
+JF-03 implements run-local evidence provenance, immutable candidate snapshots, exact source bindings, stable fingerprints, scoped views, and selective invalidation.
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
-Evidence state, compiler, provider, decisions, and runtime implementation have not started.
+Compiler, provider, decisions, and runtime implementation have not started.
 The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.
 
 ## Further reading

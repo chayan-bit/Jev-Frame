@@ -1,7 +1,7 @@
 # Jev-Frame implementation issue roadmap
 
 Status: implementation authorized on branch `codex/jev-frame-implementation`.
-JF-01 freezes the documentation contracts, and JF-02 supplies the package and typed definition foundations used by later issues.
+JF-01 freezes the documentation contracts, JF-02 supplies the package and typed definition foundations, and JF-03 supplies the shared candidate and evidence state used by later issues.
 Use Sol at high reasoning effort explicitly when implementing an assigned issue.
 Local implementation is now requested under the repository and issue boundaries below.
 

@@ -62,6 +62,7 @@ def catalog(_: Request) -> CandidateSet:
         version="1.0.0",
         candidates=(Candidate("doc-1", "doc-1", "Document one", "fixture"),),
         coverage=Coverage.COMPLETE,
+        scope="fixture",
     )
 
 

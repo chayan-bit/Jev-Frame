@@ -556,6 +556,9 @@ class Coverage(str, Enum):
     FAILED = "failed"
 
 
+NO_FIT_KEY = "__jev_frame_no_fit__"
+
+
 @dataclass(frozen=True, slots=True)
 class Candidate:
     key: str
@@ -576,22 +579,45 @@ class CandidateSet:
     version: str
     candidates: tuple[Candidate, ...]
     coverage: Coverage
+    scope: str
     total_count: int | None = None
+    query: str | None = None
+    retrieval_parameters: Mapping[str, Any] = field(default_factory=dict)
+    expansion_ref: str | None = None
+    failure_reason: str | None = None
 
     def __post_init__(self) -> None:
         _text(self.id, "candidate set id")
         _version(self.version)
         if not isinstance(self.coverage, Coverage):
             raise DefinitionError("candidate coverage must use Coverage")
+        _text(self.scope, "candidate scope")
         keys = [candidate.key for candidate in self.candidates]
         if len(keys) != len(set(keys)):
             raise DefinitionError("candidate keys must be unique")
+        if NO_FIT_KEY in keys:
+            raise DefinitionError("candidate key collides with the reserved no-fit key")
         if self.total_count is not None and (
             type(self.total_count) is not int or self.total_count < len(self.candidates)
         ):
             raise DefinitionError(
                 "candidate total count cannot be smaller than the snapshot"
             )
+        if self.coverage is Coverage.FAILED and not self.failure_reason:
+            raise DefinitionError("failed retrieval requires a failure reason")
+        if self.coverage is not Coverage.FAILED and self.failure_reason is not None:
+            raise DefinitionError("only failed retrieval may include a failure reason")
+        if self.query is not None:
+            _text(self.query, "candidate query")
+        if self.expansion_ref is not None:
+            _text(self.expansion_ref, "candidate expansion reference")
+        if not isinstance(self.retrieval_parameters, Mapping):
+            raise DefinitionError("retrieval parameters must be a mapping")
+        object.__setattr__(
+            self,
+            "retrieval_parameters",
+            MappingProxyType(dict(self.retrieval_parameters)),
+        )
 
 
 @dataclass(frozen=True, slots=True)

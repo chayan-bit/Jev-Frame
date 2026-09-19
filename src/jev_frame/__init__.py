@@ -2,6 +2,7 @@
 
 from .definitions import (  # noqa: F401
     MISSING,
+    NO_FIT_KEY,
     AcceptanceRecord,
     AcceptanceStatus,
     AgentDefinition,
@@ -62,6 +63,36 @@ from .definitions import (  # noqa: F401
     UsageCoverage,
     ensure_supported_type,
     validate_value,
+)
+from .state import (  # noqa: F401
+    AcceptanceEvidence,
+    BoundSource,
+    CandidateOutcome,
+    CandidateSelection,
+    CandidateSelectionError,
+    Derivation,
+    Evidence,
+    EvidenceKind,
+    EvidenceNotFoundError,
+    EvidenceRecord,
+    EvidenceScopeError,
+    EvidenceStore,
+    ExecutionReference,
+    ExecutionState,
+    ModelJudgment,
+    Observation,
+    SourceBindingError,
+    StableSerializationError,
+    StaleEvidenceError,
+    StateError,
+    ViewCapacityError,
+    bind_source,
+    candidate_snapshot_digest,
+    canonical_digest,
+    canonical_json,
+    decision_fingerprint,
+    evidence_digest,
+    select_candidate,
 )
 
 __all__ = [name for name in globals() if not name.startswith("_")]

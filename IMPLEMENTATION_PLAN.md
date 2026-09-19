@@ -26,7 +26,8 @@ The ten additions in Section 5.9 are included in the initial target and tracked 
 ### 1.1 Current baseline
 
 - JF-02 adds the local `jev_frame` package manifest, strict public definitions, explicit bindings, contexts, usage and result variants, a lockfile, and focused offline checks.
-- There is no evidence state, compiler, provider adapter, decision client, scheduler, executable example, CI configuration, or selected license yet.
+- JF-03 adds immutable candidate snapshots, run-local provenance records, scoped evidence views, canonical fingerprints, and selective transitive invalidation.
+- There is no compiler, provider adapter, decision client, scheduler, executable example, CI configuration, or selected license yet.
 - Generated environments and local build artifacts remain ignored.
 - JF-01 freezes the initial public names and signatures, the local `jev_frame` import name, run-local persistence, and host-owned acceptance thresholds.
 - `.codex/config.toml` currently contains a comment and does not enforce a model selection; the continuation note now reflects this.
@@ -773,6 +774,11 @@ The suite passes against editable installs on CPython 3.11.15 and 3.14.6, and th
 6. Add tests for duplicate candidate labels with distinct identities, reserved no-fit collisions, missing spans, scope leaks, source conflicts, and transitive invalidation.
 
 **Acceptance:** replacing one source snapshot invalidates only its dependent decisions, candidate reordering changes the relevant fingerprint, and unauthorized evidence never enters a decision view.
+
+**JF-03 result:** implemented in `src/jev_frame/state.py` with the candidate contract extended in `src/jev_frame/definitions.py`.
+Candidate snapshots preserve identity, order, coverage, retrieval provenance, and explicit no-fit outcomes.
+Evidence records preserve scope, freshness, exact source bindings, dependencies, supersession, conflicts, and completed-effect history.
+Focused tests cover T03-T09, including duplicate labels, reserved-key collisions, coverage states, deterministic fingerprints, Unicode spans, scope rejection, contradiction capacity, expiry, and selective transitive invalidation.
 
 ### Phase 3 — Pure decision compiler
 

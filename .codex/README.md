@@ -11,15 +11,15 @@ Project-local configuration may require the normal Codex project trust step befo
 
 ## Implementation checkpoint
 
-- Objective: complete JF-02 package foundations and checks T01-T02, then implement JF-03 evidence state.
-- State: branch `codex/jev-frame-implementation`; JF-01 is closed and JF-02 has a verified local implementation awaiting commit and issue update.
+- Objective: complete JF-03 evidence provenance, candidate snapshots, and checks T03-T09, then implement the JF-04 pure compiler.
+- State: branch `codex/jev-frame-implementation`; JF-01 and JF-02 are closed, and JF-03 has a verified local implementation awaiting commit and issue update.
 - Decisions: Python 3.11 or newer, local import `jev_frame`, `typesafe-sdk==0.7.0`, direct `pydantic>=2.12,<3`, and the public names and finite type subset in README `Frozen initial contract`.
-- Changed files: `pyproject.toml`, `uv.lock`, `src/jev_frame/definitions.py`, `src/jev_frame/__init__.py`, `tests/test_definitions.py`, AGENTS.md, README.md, IMPLEMENTATION_PLAN.md, ISSUES.md, and this checkpoint.
-- Checks: `uv run python -m unittest discover -s tests -v` passed 11 tests; the same command through isolated editable installs passed on CPython 3.11.15 and 3.14.6; `uvx ruff check src tests`, `uvx ruff format --check src tests`, `uv run --with mypy mypy src tests`, `uv run python -m compileall -q src tests`, `uv build`, and a CPython 3.11 isolated wheel import all passed.
+- Changed files: `src/jev_frame/definitions.py`, `src/jev_frame/state.py`, `src/jev_frame/__init__.py`, `tests/test_definitions.py`, `tests/test_state.py`, README.md, IMPLEMENTATION_PLAN.md, ISSUES.md, and this checkpoint.
+- Checks: `uv run python -m unittest discover -s tests -q` passed 22 tests; the same suite passed through isolated editable installs on CPython 3.11 and 3.14; `uvx ruff check src tests`, `uvx ruff format --check src tests`, `uv run --with mypy mypy src tests`, `uv run python -m compileall -q src tests`, `uv build`, an isolated CPython 3.11 wheel import, and `git diff --check` passed.
 - Failures: GitHub MCP loading was unavailable, so live issues are read and updated through the authenticated GitHub CLI; no implementation blocker remains.
-- Evidence: missing bindings leave the synthetic callable untouched; strict validation rejects string-to-int and bool-to-string coercion; default omission and explicit `None` remain distinct; imports succeed without `TYPESAFE_API_KEY` or optional frameworks; unknown usage is represented by `None` plus `UsageCoverage.UNKNOWN`.
-- Remaining gates: no JF-02 live gate remains; named adapters, provider calls, consequential effects, publication, deployment, and licensing remain assigned or unauthorized as documented.
-- Next action: commit JF-02, post evidence, close #3, update tracker #1, then implement JF-03 evidence provenance and invalidation.
+- Evidence: candidate identity survives duplicate labels and revisions; complete, truncated, unknown, failed, and no-fit outcomes stay distinct; candidate order and semantic metadata alter fingerprints; exact Unicode spans retain source identity; scope and freshness are checked at use time; conflicts are preserved or projection fails; invalidation is selective and transitive; completed effects remain historical while later dependent reasoning becomes stale.
+- Remaining gates: no JF-03 live-provider gate exists; compiler, named adapters, provider calls, consequential effects, publication, deployment, and licensing remain assigned or unauthorized as documented.
+- Next action: commit JF-03, post evidence, close #4, update tracker #1, then implement JF-04 compiler and preview behavior.
 
 Use current official TypeSafe documentation when work resumes.
 Do not copy private project history or local credentials into this repository.
