@@ -519,6 +519,7 @@ def decision_fingerprint(
     scope: str,
     evidence: Sequence[Evidence],
     candidate_sets: Sequence[CandidateSet] = (),
+    subjects: Mapping[str, Any] | None = None,
 ) -> str:
     return canonical_digest(
         {
@@ -528,6 +529,7 @@ def decision_fingerprint(
             "projection_version": projection_version,
             "compiler_version": compiler_version,
             "scope": scope,
+            "subjects": {} if subjects is None else subjects,
             "evidence": [evidence_digest(record) for record in evidence],
             "candidate_sets": [
                 candidate_snapshot_digest(snapshot) for snapshot in candidate_sets

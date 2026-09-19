@@ -14,7 +14,16 @@ from .compiler import (  # noqa: F401
     EvaluationStage,
     NodeKind,
     compile_agent,
+    compile_judgment,
     preview_agent,
+)
+from .decisions import (  # noqa: F401
+    DecisionClient,
+    DecisionInputs,
+    DecisionProvider,
+    FilterItemResult,
+    FilterVerdict,
+    SelectionResult,
 )
 from .definitions import (  # noqa: F401
     MISSING,
@@ -79,6 +88,15 @@ from .definitions import (  # noqa: F401
     UsageCoverage,
     ensure_supported_type,
     validate_value,
+)
+from .limits import (  # noqa: F401
+    AdmissionError,
+    BudgetExhaustedError,
+    DeadlineExceededError,
+    LedgerSnapshot,
+    UsageLedger,
+    UsageMeasurement,
+    UsageMeasurementKind,
 )
 from .provider import (  # noqa: F401
     PROBABILITY_SUM_TOLERANCE,

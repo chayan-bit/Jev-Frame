@@ -1,7 +1,7 @@
 # Jev-Frame implementation issue roadmap
 
 Status: implementation authorized on branch `codex/jev-frame-implementation`.
-JF-01 freezes the documentation contracts, JF-02 supplies the typed foundations, JF-03 supplies shared state, JF-04 supplies pure compilation, and JF-05 supplies the official SDK adapter used by later issues.
+JF-01 freezes the contracts, JF-02 supplies typed foundations, JF-03 supplies shared state, JF-04 supplies compilation, JF-05 supplies the SDK adapter, and JF-06 supplies direct decisions and shared admission.
 Use Sol at high reasoning effort explicitly when implementing an assigned issue.
 Local implementation is now requested under the repository and issue boundaries below.
 

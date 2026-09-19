@@ -938,6 +938,148 @@ def _validate_revision_capabilities(
     return tuple(capability_ids)
 
 
+def compile_judgment(
+    judgment: Judgment,
+    *,
+    candidate_set: CandidateSet | None = None,
+    routing_id: str | None = None,
+    resolved_dependencies: Collection[str] = (),
+) -> CompiledQuestion:
+    """Compile one direct decision through the same provider-neutral contract."""
+
+    missing_dependencies = set(judgment.dependencies) - set(resolved_dependencies)
+    if missing_dependencies:
+        raise CompilerError(
+            CompilationDiagnostic(
+                "unresolved_judgment_dependency",
+                f"judgment {judgment.id} requires prior judgments {sorted(missing_dependencies)}",
+                judgment.id,
+                f"judge:{judgment.id}",
+                judgment.subjects[0].name,
+                reference=min(missing_dependencies),
+            )
+        )
+    if judgment.candidate_set is None and candidate_set is not None:
+        raise CompilerError(
+            CompilationDiagnostic(
+                "unexpected_candidate_snapshot",
+                f"judgment {judgment.id} does not declare a candidate set",
+                judgment.id,
+                f"judge:{judgment.id}",
+                judgment.subjects[0].name,
+                reference=candidate_set.id,
+            )
+        )
+    if judgment.candidate_set is not None and (
+        candidate_set is None or candidate_set.id != judgment.candidate_set
+    ):
+        raise CompilerError(
+            CompilationDiagnostic(
+                "missing_candidate_snapshot",
+                f"judgment {judgment.id} requires candidate set {judgment.candidate_set}",
+                judgment.id,
+                f"judge:{judgment.id}",
+                judgment.subjects[0].name,
+                reference=judgment.candidate_set,
+            )
+        )
+    primitive = judgment.primitive
+    subjects = tuple(item.name for item in judgment.subjects)
+    evidence = tuple(item.name for item in judgment.evidence)
+    instructions = primitive.instructions.rstrip()
+    instructions += f"\nSubjects: {', '.join(subjects)}."
+    if evidence:
+        instructions += f"\nEvidence paths: {', '.join(evidence)}."
+    options: tuple[CompiledOption, ...] = ()
+    score_levels: tuple[str, ...] = ()
+    true_description: str | None = None
+    false_description: str | None = None
+    if isinstance(primitive, ChoiceQuestion):
+        primitive_name = "choice"
+        if candidate_set is None:
+            options = tuple(
+                CompiledOption(item.key, item.description or item.key)
+                for item in primitive.criteria
+            )
+        else:
+            if candidate_set.coverage.value == "failed":
+                raise CompilerError(
+                    CompilationDiagnostic(
+                        "candidate_retrieval_failed",
+                        f"candidate set {candidate_set.id} failed retrieval",
+                        judgment.id,
+                        f"judge:{judgment.id}",
+                        subjects[0],
+                        reference=candidate_set.id,
+                    )
+                )
+            if not candidate_set.candidates:
+                raise CompilerError(
+                    CompilationDiagnostic(
+                        "deterministic_no_fit",
+                        f"candidate set {candidate_set.id} is empty",
+                        judgment.id,
+                        f"judge:{judgment.id}",
+                        subjects[0],
+                        reference=candidate_set.id,
+                    )
+                )
+            options = tuple(
+                CompiledOption(
+                    item.key,
+                    item.description,
+                    item.source_id,
+                    item.source_version,
+                )
+                for item in candidate_set.candidates
+            ) + (CompiledOption(NO_FIT_KEY, "None of the supplied candidates fit."),)
+        if len(options) > MAX_CHOICE_OPTIONS:
+            raise CompilerError(
+                CompilationDiagnostic(
+                    "choice_limit_exceeded",
+                    f"judgment {judgment.id} exceeds {MAX_CHOICE_OPTIONS} Choice options including no-fit",
+                    judgment.id,
+                    f"judge:{judgment.id}",
+                    subjects[0],
+                    reference=judgment.candidate_set,
+                )
+            )
+    elif isinstance(primitive, NoulQuestion):
+        primitive_name = "noul"
+        true_description = primitive.true_description
+        false_description = primitive.false_description
+    elif isinstance(primitive, ScoreQuestion):
+        primitive_name = "score"
+        score_levels = primitive.criteria
+        if len(score_levels) > MAX_SCORE_LEVELS:
+            raise CompilerError(
+                CompilationDiagnostic(
+                    "score_limit_exceeded",
+                    f"judgment {judgment.id} exceeds {MAX_SCORE_LEVELS} Score levels",
+                    judgment.id,
+                    f"judge:{judgment.id}",
+                    subjects[0],
+                )
+            )
+    else:  # pragma: no cover - Judgment validates the boundary.
+        raise TypeError("unsupported primitive")
+    return CompiledQuestion(
+        routing_id or f"question:{judgment.id}",
+        judgment.id,
+        primitive_name,
+        instructions,
+        subjects,
+        evidence,
+        judgment.dependencies,
+        judgment.applicability,
+        judgment.candidate_set,
+        options,
+        score_levels,
+        true_description,
+        false_description,
+    )
+
+
 def compile_agent(
     definition: AgentDefinition[Any, Any],
     *,

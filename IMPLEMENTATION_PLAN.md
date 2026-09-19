@@ -29,7 +29,8 @@ The ten additions in Section 5.9 are included in the initial target and tracked 
 - JF-03 adds immutable candidate snapshots, run-local provenance records, scoped evidence views, canonical fingerprints, and selective transitive invalidation.
 - JF-04 adds pure backward compilation, explicit judgment stages, bounded question construction, registered capability-revision validation, and serializable offline preview.
 - JF-05 adds the official asynchronous SDK adapter, framework-owned bounded retries, strict primitive response validation, request and attempt metadata, and explicit unknown usage.
-- There is no decision client, scheduler, executable example, CI configuration, or selected license yet.
+- JF-06 adds standalone decision operations, injected evidence sessions, exact source extraction, portable callables, and the shared atomic admission and usage ledger.
+- There is no agent scheduler, executable example, CI configuration, or selected license yet.
 - Generated environments and local build artifacts remain ignored.
 - JF-01 freezes the initial public names and signatures, the local `jev_frame` import name, run-local persistence, and host-owned acceptance thresholds.
 - `.codex/config.toml` currently contains a comment and does not enforce a model selection; the continuation note now reflects this.
@@ -846,6 +847,14 @@ No live request or paid provider usage was performed, so live compatibility rema
 
 **Acceptance:** a host callable invokes Jev without adopting the Jev-Frame scheduler, and importing the core requires neither host framework.
 This provides a usable portable integration before full standalone-agent delivery; named-framework adapters add their required checkpoints after Phase 6 and complete hybrid flows follow Phase 8.
+
+**JF-06 result:** implemented in `src/jev_frame/decisions.py` and `src/jev_frame/limits.py` over the existing compiler, evidence store, and provider adapter.
+`DecisionClient` exposes evaluate, select, filter, assess, score, exact source extraction, and a portable callable without constructing an `AgentDefinition` or outer scheduler.
+Direct inputs enforce exact subject, evidence, candidate, and scope mappings; recorded decision fingerprints now include subject values as required by the contract.
+Selection preserves opaque candidate identity, duplicate labels, singleton suitability and explicit no-fit, while incomplete no-fit retains its coverage gap and expansion reference.
+The initial filter path keeps separately scoped items in separately accounted requests and uses an explicit host classifier instead of inventing a universal Noul threshold.
+`UsageLedger` atomically admits operations, attempts and questions, deduplicates identities, enforces monotonic deadlines and concurrency, and keeps observed, estimated, reserved, released and unknown token measurements distinct.
+Focused checks cover T17, T21, T44 and T56 with a credential-free scripted provider, including all five convenience operations, exact provenance, portable invocation, zero/singleton/duplicate/no-fit selection, per-item filtering, subject-sensitive fingerprints, one-winner concurrent admission, and non-multiplied batch token usage.
 
 ### Phase 5 — Read-only vertical slice
 

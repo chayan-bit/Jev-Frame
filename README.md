@@ -2,9 +2,9 @@
 
 A proposed Python framework for building Jev agents and integrating Jev decisions into existing LLM agents.
 
-**Status: JF-05 official SDK adapter implemented and verified offline; standalone decision operations are next.**
-The local package exposes strict definitions, run-local evidence and candidate state, deterministic compilation and preview, and an asynchronous `typesafe-sdk==0.7.0` adapter with strict response validation.
-Live provider compatibility remains unverified, and the package does not yet implement standalone decision operations, scheduling, or executable examples.
+**Status: JF-06 standalone decision operations and shared admission accounting implemented; diagnostics and inspection are next.**
+The local package exposes strict definitions, run-local state, deterministic compilation and preview, the asynchronous official SDK adapter, and direct `DecisionClient` operations that do not start an agent scheduler.
+Live provider compatibility remains unverified, and the package does not yet implement the agent scheduler or executable examples.
 This is an independent project, not an official TypeSafe product.
 
 ## Local development
@@ -79,8 +79,8 @@ Advanced applications should be able to control candidate providers, decision de
 ## Frozen initial contract
 
 This section fixes the JF-01 contract surface.
-JF-02 implements its definition, binding, context, usage, and result types, JF-03 implements the shared evidence and candidate state, JF-04 implements pure compilation and preview, and JF-05 implements the official SDK adapter.
-Later issues implement provider-backed decision and runtime entry points shown below.
+JF-02 implements its definition, binding, context, usage, and result types, JF-03 implements shared state, JF-04 implements compilation and preview, JF-05 implements the official SDK adapter, and JF-06 implements direct decisions and shared admission.
+Later issues implement the agent runtime and guarded execution entry points shown below.
 
 ### Compatibility baseline
 
@@ -140,7 +140,6 @@ It owns no outer loop and exposes `evaluate`, `select`, `filter`, `assess`, `sco
 The direct authoring shape requires no `AgentDefinition` and starts no scheduler:
 
 ```python
-# Contract shape only; DecisionClient becomes executable in JF-06.
 judgment = Judgment(
     id="supports_statement",
     version="1.0.0",
@@ -150,6 +149,19 @@ judgment = Judgment(
 )
 decision = await decision_client.evaluate(judgment, inputs, decision_context)
 ```
+
+`DecisionInputs` supplies a stable operation ID, an exact subject-name mapping, explicitly named scoped observations, and any declared candidate snapshot.
+`DecisionClient.evaluate` compiles one judgment, admits its provider attempts atomically, records provider usage once per batch, writes a `ModelJudgment` into an injected `EvidenceStore` when supplied, and returns an unassessed `DecisionResult`.
+`select` resolves the returned opaque key against the exact snapshot and handles empty complete snapshots deterministically without a provider call.
+No-fit over truncated or unknown coverage carries an incomplete-coverage result and expansion reference rather than claiming global absence.
+`filter` preserves every item identity and returns accepted, rejected, unassessed, or unresolved per-item outcomes using an explicit host classifier; the initial implementation uses separately accounted requests rather than combining distinct views.
+`assess` preserves Noul probability, `score` preserves fractional ordered Score output, and `extract_source` copies an exact current field or Unicode code-point span without a provider request.
+`as_callable` closes over provider identity and credentials so host frameworks need expose only typed inputs and context.
+
+`UsageLedger` atomically admits active operations, provider attempts, and submitted questions against `RunLimits`, deduplicates attempt and operation identities, and checks the caller's monotonic deadline before dispatch.
+It records observed, estimated, reserved, released, and unknown token usage as distinct measurements.
+Token observations are recorded once for the whole provider batch rather than multiplied by question count, while every retry resubmits and therefore consumes its question count.
+Reservations and estimates are accounting evidence, not a guaranteed billing ceiling without a defensible worst-case price and token bound.
 
 `Judgment` contains a stable ID and version, one primitive definition, explicit subject selectors, evidence selectors, an optional explicit `candidate_set`, dependency IDs, applicability, and an optional acceptance-policy ID.
 Its primitive is exactly one of `ChoiceQuestion`, `NoulQuestion`, or `ScoreQuestion`.
@@ -304,7 +316,7 @@ Host checkpointing does not automatically make Jev-Frame state resumable or exte
 
 ## Developer experience and capability baseline
 
-The following ten features are accepted design requirements for the initial implementation backlog, not implemented behavior.
+The following ten features are accepted design requirements for the initial implementation backlog; their implementation state advances through the issue roadmap.
 They compose over the same decision API, evidence model, and runtime rather than introducing independent agent engines.
 
 | Feature | Required developer-facing behavior | Boundary |
@@ -500,11 +512,14 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `src/jev_frame/state.py` | Immutable candidate snapshots, provenance records, scoped views, fingerprints, and invalidation |
 | `src/jev_frame/compiler.py` | Pure dependency compilation, bounded question construction, and serializable offline preview |
 | `src/jev_frame/provider.py` | Official asynchronous TypeSafe SDK transport, retry ownership, strict response validation, and normalized answers |
+| `src/jev_frame/limits.py` | Atomic shared attempt, question, concurrency, deadline, reservation, and usage accounting |
+| `src/jev_frame/decisions.py` | Standalone evaluate, select, filter, assess, score, exact extraction, and portable callable operations |
 | `src/jev_frame/__init__.py` | Small public export surface |
 | `tests/test_definitions.py` | Offline JF-02 behavior and failure checks |
 | `tests/test_state.py` | Offline JF-03 candidate and evidence-state checks |
 | `tests/test_compiler.py` | Offline JF-04 compiler, preview, dependency, and limit checks |
 | `tests/test_provider.py` | Offline JF-05 SDK wire, response, retry, ownership, cancellation, and usage checks |
+| `tests/test_decisions.py` | Offline JF-06 direct-operation, provenance, selection, extraction, and concurrent-admission checks |
 
 The [implementation plan for Sol](IMPLEMENTATION_PLAN.md) defines the frozen public contracts, implementation sequence, behavioral checks, and delivery gates for this design.
 JF-01 froze the names and interfaces above after read-only compatibility checks; later changes require an explicit synchronized contract revision.
@@ -512,8 +527,9 @@ JF-02 implements the package foundations and typed definitions without skipping 
 JF-03 implements run-local evidence provenance, immutable candidate snapshots, exact source bindings, stable fingerprints, scoped views, and selective invalidation.
 JF-04 implements pure backward compilation and offline preview without retrieval, tool, or provider dispatch.
 JF-05 implements the official asynchronous SDK boundary and validates its wire behavior with mock transport only; no live provider request has been made.
+JF-06 implements the direct decision API and one shared in-memory ledger without adopting the agent scheduler or optional host frameworks.
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
-Standalone decisions and runtime implementation have not started.
+The agent runtime, guarded execution, integrations, and extended capabilities remain assigned to later issues.
 The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.
 
 ## Further reading
