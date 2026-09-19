@@ -2,9 +2,23 @@
 
 A proposed Python framework for building Jev agents and integrating Jev decisions into existing LLM agents.
 
-**Status: public contracts frozen; implementation starts with JF-02.**
-There is no installable framework, runtime implementation, executable example, or published package yet.
+**Status: JF-02 package foundations implemented; evidence state is next.**
+The local package exposes strict definitions, bindings, contexts, usage, and result contracts.
+It does not yet implement evidence storage, compilation, provider calls, decision operations, scheduling, or executable examples.
 This is an independent project, not an official TypeSafe product.
+
+## Local development
+
+Use the checked lockfile to create the project environment and run the current behavioral checks:
+
+```sh
+uv sync
+uv run python -m unittest discover -s tests -v
+```
+
+Build local artifacts with `uv build`.
+The core import performs no network request, credential lookup, or optional-framework import.
+No package has been published.
 
 ## Purpose
 
@@ -64,8 +78,8 @@ Advanced applications should be able to control candidate providers, decision de
 
 ## Frozen initial contract
 
-This section fixes the JF-01 contract surface without claiming that the imports exist yet.
-The authoring shapes are specification examples and deliberately omit installation commands until JF-02 creates the package.
+This section fixes the JF-01 contract surface.
+JF-02 implements its definition, binding, context, usage, and result types; later issues implement the decision and runtime entry points shown below.
 
 ### Compatibility baseline
 
@@ -125,7 +139,7 @@ It owns no outer loop and exposes `evaluate`, `select`, `filter`, `assess`, `sco
 The direct authoring shape requires no `AgentDefinition` and starts no scheduler:
 
 ```python
-# Contract shape only; these imports become executable in later issues.
+# Contract shape only; DecisionClient becomes executable in JF-06.
 judgment = Judgment(
     id="supports_statement",
     version="1.0.0",
@@ -159,7 +173,7 @@ Every run has isolated append-only state while concurrent runs share only the co
 The agent authoring shape registers meanings and dependencies while the shared runtime owns scheduling:
 
 ```python
-# Contract shape only; application callables remain explicit registrations.
+# Contract shape only; AgentDefinition exists, while Runtime becomes executable in JF-09.
 definition = AgentDefinition(
     id="document_support",
     version="1.0.0",
@@ -452,12 +466,17 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `.codex/config.toml` | Project-local Codex model defaults |
 | `.codex/README.md` | Codex usage and continuation context |
 | `.gitignore` | Keep credentials and generated local files out of Git |
+| `pyproject.toml` | Local package metadata and direct dependency declarations |
+| `uv.lock` | Reproducible project dependency resolution |
+| `src/jev_frame/definitions.py` | Strict public definitions, bindings, contexts, usage, and results |
+| `src/jev_frame/__init__.py` | Small public export surface |
+| `tests/test_definitions.py` | Offline JF-02 behavior and failure checks |
 
 The [implementation plan for Sol](IMPLEMENTATION_PLAN.md) defines the frozen public contracts, implementation sequence, behavioral checks, and delivery gates for this design.
 JF-01 froze the names and interfaces above after read-only compatibility checks; later changes require an explicit synchronized contract revision.
-The next implementation issue creates the package foundations and typed definitions without skipping ahead to the runtime.
+JF-02 implements the package foundations and typed definitions without skipping ahead to provider or runtime behavior.
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
-Runtime implementation has not started.
+Evidence state, compiler, provider, decisions, and runtime implementation have not started.
 The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.
 
 ## Further reading

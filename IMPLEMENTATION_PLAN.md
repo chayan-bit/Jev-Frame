@@ -25,9 +25,9 @@ The ten additions in Section 5.9 are included in the initial target and tracked 
 
 ### 1.1 Current baseline
 
-- The repository contains the README, project instructions, Git exclusions, and Codex initialization files.
-- There is no implementation, package manifest, test suite, executable example, CI configuration, or selected license.
-- The working tree was clean when planning began.
+- JF-02 adds the local `jev_frame` package manifest, strict public definitions, explicit bindings, contexts, usage and result variants, a lockfile, and focused offline checks.
+- There is no evidence state, compiler, provider adapter, decision client, scheduler, executable example, CI configuration, or selected license yet.
+- Generated environments and local build artifacts remain ignored.
 - JF-01 freezes the initial public names and signatures, the local `jev_frame` import name, run-local persistence, and host-owned acceptance thresholds.
 - `.codex/config.toml` currently contains a comment and does not enforce a model selection; the continuation note now reflects this.
 - Select Sol high explicitly when starting implementation.
@@ -754,6 +754,10 @@ Named-framework execution remains assigned to JF-12 and JF-13 rather than being 
 6. Add tests for valid definitions, unsupported annotations, duplicate names, missing bindings, and invalid input or output values.
 
 **Acceptance:** local import and definition validation work offline, invalid definitions trigger no tool/provider invocation, and the documented annotation subset is accurate.
+
+**JF-02 result:** implemented in `src/jev_frame/definitions.py` with public exports and focused standard-library tests.
+Missing bindings, unsupported signatures and types, unresolved annotations, scalar coercion, conflicting IDs, invalid references, unsafe mutation metadata, invalid limits, and falsely complete usage fail before any operation.
+The suite passes against editable installs on CPython 3.11.15 and 3.14.6, and the built wheel imports without credentials or optional frameworks.
 
 ### Phase 2 — Evidence and candidate state
 
