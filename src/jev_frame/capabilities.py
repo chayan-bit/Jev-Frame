@@ -500,6 +500,7 @@ class CapabilityCatalog:
             requires_evidence=requires_evidence,
             produces_evidence=produces_evidence,
             scope_requirements=scope_requirements,
+            allowed_scopes=(reference.scope,),
         )
 
 
@@ -529,6 +530,15 @@ def mcp_tool_descriptor(
         value = call_tool(name, dict(arguments))
         if inspect.isawaitable(value):
             value = await value
+        error_status = (
+            value.get("isError", value.get("is_error"))
+            if isinstance(value, Mapping)
+            else getattr(value, "isError", getattr(value, "is_error", None))
+        )
+        if error_status is not None and type(error_status) is not bool:
+            raise CapabilityImportError("MCP tool returned an invalid error status")
+        if error_status is True:
+            raise CapabilityImportError("MCP tool reported an error")
         if isinstance(value, Mapping) and "structuredContent" in value:
             return value["structuredContent"]
         for attribute in ("structuredContent", "structured_content"):

@@ -1,7 +1,8 @@
 import asyncio
 import unittest
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from types import SimpleNamespace
 from typing import Any
 
 from jev_frame import (
@@ -11,6 +12,7 @@ from jev_frame import (
     CompiledQuestion,
     CompletionContract,
     Coverage,
+    EvidenceStore,
     ForeignToolDescriptor,
     ImportedToolSemantics,
     InputValidationError,
@@ -233,6 +235,103 @@ class CapabilityCatalogTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(session.calls, [("uppercase", {"text": "hello"})])
         snapshot = await runtime.ledger.snapshot()  # type: ignore[union-attr]
         self.assertEqual(snapshot.tool_attempts, 1)
+
+    async def test_activated_scope_is_enforced_after_tool_wrapping(self) -> None:
+        calls: list[str] = []
+
+        async def invoke(arguments: Mapping[str, Any]) -> str:
+            calls.append(str(arguments["text"]))
+            return str(arguments["text"])
+
+        catalog = CapabilityCatalog(
+            "host-tools",
+            "1.0.0",
+            (descriptor("echo", ("tenant-a",), invoke),),
+            ("tenant-a",),
+        )
+        reference = catalog.discover("echo", "tenant-a", limit=1).candidates[0].value
+        tool = catalog.activate(reference, semantics())
+        wrapped = replace(tool, purpose="Wrapped by a host composition path.")
+        runtime = Runtime(
+            UnexpectedProvider(),
+            model="unused",
+            completion_checks={"accept": lambda value, store: True},
+        )
+        shared_limits = RunLimits(0, 0, 2, 0, 1, 0, 0, 0, 0, 0)
+
+        allowed = await runtime.run(
+            definition(wrapped),
+            Request("allowed"),
+            replace(context("allowed"), scope="tenant-a", limits=shared_limits),
+        )
+        denied = await runtime.run(
+            definition(wrapped),
+            Request("denied"),
+            replace(context("denied"), scope="tenant-b", limits=shared_limits),
+        )
+
+        self.assertIs(allowed.status, TerminalStatus.COMPLETED)
+        self.assertIs(denied.status, TerminalStatus.UNRESOLVED)
+        self.assertEqual(denied.unresolved[0].reason.value, "permission_denial")
+        self.assertEqual(calls, ["allowed"])
+
+    async def test_mcp_explicit_error_status_fails_before_output_validation(self) -> None:
+        output_schema = {
+            "type": "object",
+            "properties": {"message": {"type": "string"}},
+            "required": ["message"],
+            "additionalProperties": False,
+        }
+
+        class ErrorSession:
+            def __init__(self, response: Any) -> None:
+                self.response = response
+
+            async def call_tool(self, name: str, arguments: Mapping[str, Any]) -> Any:
+                return self.response
+
+        responses = (
+            {
+                "isError": True,
+                "structuredContent": {"message": "schema-valid secret"},
+            },
+            SimpleNamespace(
+                isError=True,
+                structuredContent={"message": "schema-valid secret"},
+            ),
+        )
+        for index, response in enumerate(responses):
+            foreign = mcp_tool_descriptor(
+                ErrorSession(response),
+                {
+                    "name": f"read-{index}",
+                    "description": "Return an explicit MCP error.",
+                    "inputSchema": INPUT_SCHEMA,
+                    "outputSchema": output_schema,
+                },
+                version="1.0.0",
+                scopes=("fixture",),
+            )
+            catalog = CapabilityCatalog(
+                f"errors-{index}", "1.0.0", (foreign,), ("fixture",)
+            )
+            reference = catalog.discover("error", "fixture", limit=1).candidates[0].value
+            tool = catalog.activate(reference, semantics())
+            store = EvidenceStore(lambda: 0.0)
+            runtime = Runtime(
+                UnexpectedProvider(),
+                model="unused",
+                completion_checks={"accept": lambda value, evidence: True},
+            )
+
+            result = await runtime.run(
+                replace(definition(tool), output_type=tool.output_type),
+                Request("secret"),
+                replace(context(f"mcp-error-{index}"), evidence_session=store),
+            )
+
+            self.assertIs(result.status, TerminalStatus.FAILED)
+            self.assertEqual(store.records, ())
 
     async def test_schema_validation_errors_and_cancellation_are_explicit(self) -> None:
         async def unsafe(arguments: Mapping[str, Any]) -> Any:

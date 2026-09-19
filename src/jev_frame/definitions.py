@@ -404,6 +404,7 @@ class Tool:
     requires_evidence: tuple[str, ...] = ()
     produces_evidence: tuple[str, ...] = ()
     scope_requirements: tuple[str, ...] = ()
+    allowed_scopes: tuple[str, ...] = ()
     blocking: bool = False
     output_type: Any = field(init=False, repr=False, compare=False)
 
@@ -439,6 +440,7 @@ class Tool:
             ("required evidence", self.requires_evidence),
             ("produced evidence", self.produces_evidence),
             ("scope requirements", self.scope_requirements),
+            ("allowed scopes", self.allowed_scopes),
         ):
             if len(values) != len(set(values)) or any(
                 type(value) is not str or not value for value in values

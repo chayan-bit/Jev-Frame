@@ -1438,6 +1438,15 @@ class Runtime:
     ) -> None:
         run_id = context.run_id
         assert run_id is not None
+        if tool.allowed_scopes and context.scope not in tool.allowed_scopes:
+            raise _RunUnresolved(
+                Unresolved(
+                    UnresolvedReason.PERMISSION_DENIAL,
+                    (tool.id,),
+                    "the capability is not activated for this run scope",
+                    needed=context.scope,
+                )
+            )
         arguments, dependencies = self._tool_arguments(tool, inputs, context, state)
         operation_id = f"{run_id}:tool:{tool.id}"
         if (
