@@ -147,6 +147,8 @@ class CompiledQuestion:
     candidate_set: str | None = None
     options: tuple[CompiledOption, ...] = ()
     score_levels: tuple[str, ...] = ()
+    true_description: str | None = None
+    false_description: str | None = None
     dispatchable: bool = True
 
     def to_dict(self) -> dict[str, Any]:
@@ -166,6 +168,10 @@ class CompiledQuestion:
             result["applicability"] = self.applicability
         if self.candidate_set is not None:
             result["candidate_set"] = self.candidate_set
+        if self.true_description is not None:
+            result["true_description"] = self.true_description
+        if self.false_description is not None:
+            result["false_description"] = self.false_description
         return result
 
 
@@ -574,6 +580,8 @@ class _Compiler:
             instructions += f"\nEvidence paths: {', '.join(evidence)}."
         options: tuple[CompiledOption, ...] = ()
         score_levels: tuple[str, ...] = ()
+        true_description: str | None = None
+        false_description: str | None = None
         primitive_name: str
         dispatchable = all(not self.nodes[item].unresolved for item in dependencies)
         if isinstance(primitive, ChoiceQuestion):
@@ -629,6 +637,8 @@ class _Compiler:
                 )
         elif isinstance(primitive, NoulQuestion):
             primitive_name = "noul"
+            true_description = primitive.true_description
+            false_description = primitive.false_description
         elif isinstance(primitive, ScoreQuestion):
             primitive_name = "score"
             score_levels = primitive.criteria
@@ -653,6 +663,8 @@ class _Compiler:
             judgment.candidate_set,
             options,
             score_levels,
+            true_description,
+            false_description,
             dispatchable,
         )
 

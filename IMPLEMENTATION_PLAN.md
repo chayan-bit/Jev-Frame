@@ -28,7 +28,8 @@ The ten additions in Section 5.9 are included in the initial target and tracked 
 - JF-02 adds the local `jev_frame` package manifest, strict public definitions, explicit bindings, contexts, usage and result variants, a lockfile, and focused offline checks.
 - JF-03 adds immutable candidate snapshots, run-local provenance records, scoped evidence views, canonical fingerprints, and selective transitive invalidation.
 - JF-04 adds pure backward compilation, explicit judgment stages, bounded question construction, registered capability-revision validation, and serializable offline preview.
-- There is no provider adapter, decision client, scheduler, executable example, CI configuration, or selected license yet.
+- JF-05 adds the official asynchronous SDK adapter, framework-owned bounded retries, strict primitive response validation, request and attempt metadata, and explicit unknown usage.
+- There is no decision client, scheduler, executable example, CI configuration, or selected license yet.
 - Generated environments and local build artifacts remain ignored.
 - JF-01 freezes the initial public names and signatures, the local `jev_frame` import name, run-local persistence, and host-owned acceptance thresholds.
 - `.codex/config.toml` currently contains a comment and does not enforce a model selection; the continuation note now reflects this.
@@ -821,6 +822,12 @@ Focused checks cover T10-T13 and the preview portion of T58, including opaque ro
 
 **Acceptance:** SDK wire behavior is exercised offline, Noul has no invented confidence, fractional Score values survive, and retry layers cannot multiply each other.
 Live compatibility remains a separate unpassed gate until Phase 11.
+
+**JF-05 result:** implemented in `src/jev_frame/provider.py` around the public `AsyncTypeSafeClient.system_one` interface from `typesafe-sdk==0.7.0`.
+The adapter disables SDK retries per call, admits and records each framework-owned attempt once, preserves request and model identity, counts every resubmitted question, and leaves host-owned clients open.
+Strict batch validation covers answer completeness and type, candidate membership, finite probabilities and confidence, normalization within `1e-3`, exact ordered Score legends, fractional Score range, and optional nonnegative usage.
+Focused SDK mock-transport checks cover T14-T17, including unknown candidates, missing and malformed answers, NaN, bad distributions, near-zero Noul, fractional Score, throttling, retry exhaustion, timeout, authentication, cancellation, cleanup, sanitized failures, and unknown usage.
+No live request or paid provider usage was performed, so live compatibility remains explicitly unverified.
 
 ### Phase 4A — Embedded decisions and portable integration
 
