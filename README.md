@@ -2,9 +2,9 @@
 
 A proposed Python framework for building Jev agents and integrating Jev decisions into existing LLM agents.
 
-**Status: JF-09 shared read-only scheduling and evidence-backed completion implemented; guarded writes are next.**
-The local package exposes strict definitions, run-local state, deterministic compilation and preview, the asynchronous official SDK adapter, direct decisions, default-safe inspection, explicitly bound capability packages, and one shared read-only runtime.
-Live provider compatibility remains unverified, and consequential writes remain disabled until JF-10 supplies the distinct authority and reconciliation contracts.
+**Status: JF-10 semantic acceptance and guarded synthetic write execution implemented; bounded investigation is next.**
+The local package exposes strict definitions, run-local state, deterministic compilation and preview, the asynchronous official SDK adapter, direct decisions, default-safe inspection, explicitly bound capability packages, and one shared runtime.
+Live provider compatibility remains unverified, and no real consequential write has been authorized or exercised.
 This is an independent project, not an official TypeSafe product.
 
 ## Local development
@@ -201,7 +201,9 @@ The runtime retrieves declared candidate snapshots, recompiles against their exa
 Dependent judgments always use later provider calls, and an inactive applicability branch cannot bind a result or complete the run.
 Only `PURE` and `READ` tools are admitted in JF-09, tool outputs are strictly validated, and declared blocking callables use bounded worker threads whose underlying work may outlive cancellation of the await.
 Freshness is checked before dispatch and acceptance, so a late answer over changed evidence remains historical and cannot satisfy completion.
-Application-supplied completion callbacks validate semantic acceptance separately from the typed output schema; JF-10 adds the distinct authorization gate for mutations.
+Application-supplied completion callbacks validate semantic acceptance separately from the typed output schema.
+JF-10 additionally admits declared `MUTATION` tools only after a versioned semantic policy, any configured required checkpoint, a current exact-action authorization, source and argument revalidation, write admission, and durable intent recording.
+The runtime records `outcome_unknown` after any possibly accepted request with no valid receipt and performs only the tool contract's declared reconciliation lookup; it never blindly retries an ambiguous write.
 `RunResult` has one terminal status from `completed`, `unresolved`, `failed`, or `cancelled`; a completed value exists only when the completion contract and evidence policy accept it.
 
 The agent authoring shape registers meanings and dependencies while the shared runtime owns scheduling:
@@ -228,6 +230,9 @@ Zero disables that work class, negative or unlimited values are invalid, and can
 `AcceptancePolicy` returns `accept`, `investigate`, `reject`, or `handoff` with versioned reasons and never grants execution permission.
 `Authorizer` independently returns an exact-action authorization bound to the tool, arguments, scope, source versions, authority context, and expiry.
 `ExecutionReceipt` and `WriteRecord` preserve `proposed`, `authorized`, `in_flight`, `succeeded`, `failed_before_effect`, or `outcome_unknown`; only reconciliation or a downstream guarantee permits retry after an ambiguous dispatch.
+`MutationContract.idempotency_parameter` names the explicit string argument that carries a downstream idempotency key when the tool claims such support.
+`RequiredCheckpoint` returns a `CheckpointRecord` bound to the exact action digest, so an earlier artifact decision cannot approve changed arguments.
+Consequential tools whose mutation contract requires durable intent are rejected before dispatch unless the host supplies `DurableIntentStore`; the core does not pretend its run-local evidence store is crash durable.
 
 `Planner` is an optional typed asynchronous callable owned by the host.
 It receives an objective, permitted evidence, registered capability descriptions, prior outcomes, and remaining limits.
@@ -536,7 +541,8 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `src/jev_frame/decisions.py` | Standalone evaluate, select, filter, assess, score, exact extraction, and portable callable operations |
 | `src/jev_frame/inspection.py` | Sanitized event records, result serialization, permitted inspection projections, and actionable diagnostics |
 | `src/jev_frame/packages.py` | Typed package binding and the generic document-evidence capability package |
-| `src/jev_frame/runtime.py` | Shared read-only scheduler, tool dispatch, completion checks, cancellation, and terminal results |
+| `src/jev_frame/policy.py` | Versioned semantic policies, exact action/checkpoint records, authorization, receipts, and durable intent contracts |
+| `src/jev_frame/runtime.py` | Shared scheduler, read and guarded mutation dispatch, completion checks, cancellation, and terminal results |
 | `src/jev_frame/__init__.py` | Small public export surface |
 | `examples/document_evidence.py` | Public-import synthetic binding of one package to two catalogs |
 | `examples/document_evidence_cases.py` | Evaluator-only synthetic case descriptors excluded from runtime imports |
@@ -547,6 +553,7 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `tests/test_decisions.py` | Offline JF-06 direct-operation, provenance, selection, extraction, and concurrent-admission checks |
 | `tests/test_inspection.py` | Offline JF-07 correlation, redaction, exact projection, diagnostic, sink-failure, and cancellation checks |
 | `tests/test_packages.py` | Offline JF-08 package reuse, binding validation, evaluator isolation, and version-identity checks |
+| `tests/test_policy.py` | Offline JF-10 acceptance, authorization, revalidation, receipt, reconciliation, and cancellation checks |
 | `tests/test_runtime.py` | Offline JF-09 scheduling, isolation, completion, stale-input, failure, and cancellation checks |
 
 The [implementation plan for Sol](IMPLEMENTATION_PLAN.md) defines the frozen public contracts, implementation sequence, behavioral checks, and delivery gates for this design.
@@ -559,8 +566,9 @@ JF-06 implements the direct decision API and one shared in-memory ledger without
 JF-07 implements the shared event and inspection vocabulary on the direct path without adding external telemetry, persistence, replay, or a web UI.
 JF-08 implements explicit package binding and the generic document-evidence package without automatic discovery, a registry service, or package-owned acceptance thresholds.
 JF-09 implements the shared read-only runtime without consequential writes, investigation, child composition, planning, distributed queues, or durable resume.
+JF-10 implements guarded mutation dispatch against synthetic services without claiming exactly-once effects, core-owned durable storage, real application authorization, or hostile-callable sandboxing.
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
-Guarded execution, integrations, and extended capabilities remain assigned to later issues.
+Investigation, integrations, and extended capabilities remain assigned to later issues.
 The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.
 
 ## Further reading

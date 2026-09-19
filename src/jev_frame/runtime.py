@@ -62,10 +62,27 @@ from .limits import (
     DeadlineExceededError,
     UsageLedger,
 )
+from .policy import (
+    AcceptancePolicy,
+    ActionProposal,
+    AuthorizationRecord,
+    Authorizer,
+    DurableIntentStore,
+    EffectNotStartedError,
+    ExecutionReceipt,
+    PolicyError,
+    PolicyInput,
+    RequiredCheckpoint,
+    WriteRecord,
+    maybe_await,
+    source_versions,
+)
 from .state import (
     AcceptanceEvidence,
     Derivation,
     EvidenceStore,
+    ExecutionReference,
+    ExecutionState,
     ModelJudgment,
     Observation,
     bind_source,
@@ -100,6 +117,7 @@ class _RunState:
     findings: dict[str, Any]
     selections: dict[str, Any]
     decision_refs: dict[str, str]
+    acceptance_refs: dict[str, str]
     statuses: dict[str, NodeStatus]
     usages: list[Usage]
 
@@ -195,7 +213,7 @@ def _usage_total(values: Sequence[Usage]) -> Usage:
 
 
 class Runtime:
-    """One deterministic read-only scheduler shared by every agent definition."""
+    """One deterministic scheduler shared by every agent definition."""
 
     def __init__(
         self,
@@ -204,6 +222,10 @@ class Runtime:
         model: str,
         completion_checks: Mapping[str, CompletionCheck],
         applicability_checks: Mapping[str, ApplicabilityCheck] | None = None,
+        acceptance_policies: Mapping[str, AcceptancePolicy] | None = None,
+        authorizer: Authorizer | None = None,
+        intent_store: DurableIntentStore | None = None,
+        required_checkpoint: RequiredCheckpoint | None = None,
         ledger: UsageLedger | None = None,
         event_log: EventLog | None = None,
     ) -> None:
@@ -225,6 +247,32 @@ class Runtime:
         self.model = model
         self.completion_checks = dict(completion_checks)
         self.applicability_checks = checks
+        policies = {} if acceptance_policies is None else dict(acceptance_policies)
+        if any(
+            key != policy.id or not isinstance(policy, AcceptancePolicy)
+            for key, policy in policies.items()
+        ):
+            raise RuntimeConfigurationError(
+                "acceptance policies must be keyed by their identifiers"
+            )
+        if authorizer is not None and not callable(
+            getattr(authorizer, "authorize", None)
+        ):
+            raise RuntimeConfigurationError("authorizer must expose authorize")
+        if intent_store is not None and not callable(
+            getattr(intent_store, "record", None)
+        ):
+            raise RuntimeConfigurationError("intent store must expose record")
+        if required_checkpoint is not None and not isinstance(
+            required_checkpoint, RequiredCheckpoint
+        ):
+            raise RuntimeConfigurationError(
+                "required checkpoint must use RequiredCheckpoint"
+            )
+        self.acceptance_policies = policies
+        self.authorizer = authorizer
+        self.intent_store = intent_store
+        self.required_checkpoint = required_checkpoint
         self.event_log = EventLog() if event_log is None else event_log
         self.ledger = ledger
         self._semaphore: asyncio.Semaphore | None = None
@@ -537,6 +585,386 @@ class Runtime:
             result[name] = validate_value(hints[name], value, f"{tool.id}.{name}")
         return result, tuple(dict.fromkeys(dependencies))
 
+    async def _persist_write(self, tool: Tool, record: WriteRecord) -> None:
+        assert tool.mutation is not None
+        if self.intent_store is None:
+            if tool.mutation.durable_intent_required:
+                raise _RunUnresolved(
+                    Unresolved(
+                        UnresolvedReason.PERMISSION_DENIAL,
+                        (tool.id,),
+                        "the mutation requires a durable host intent store",
+                        needed="durable_intent_store",
+                    )
+                )
+            return
+        await maybe_await(self.intent_store.record(record))
+
+    @staticmethod
+    def _receipt(value: Any, operation_id: str) -> ExecutionReceipt:
+        if (
+            not isinstance(value, ExecutionReceipt)
+            or value.operation_id != operation_id
+        ):
+            raise PolicyError("mutation returned an invalid receipt")
+        return value
+
+    def _record_execution(
+        self,
+        record: WriteRecord,
+        dependencies: tuple[str, ...],
+        context: RunContext,
+        state: _RunState,
+    ) -> str:
+        evidence_id = (
+            f"{context.run_id}:execution:{record.proposal.tool_id}:{record.state.value}"
+        )
+        state.store.add(
+            ExecutionReference(
+                id=evidence_id,
+                value=record,
+                source_id=f"tool:{record.proposal.tool_id}",
+                scope=context.scope,
+                observed_at=context.clock(),
+                dependencies=dependencies,
+                operation_id=record.proposal.operation_id,
+                state=record.state,
+            )
+        )
+        return evidence_id
+
+    async def _reconcile_mutation(
+        self,
+        tool: Tool,
+        proposal: ActionProposal,
+        authorization: AuthorizationRecord,
+        dependencies: tuple[str, ...],
+        context: RunContext,
+        state: _RunState,
+    ) -> ExecutionReceipt:
+        assert tool.mutation is not None
+        receipt: ExecutionReceipt | None = None
+        if tool.mutation.reconcile is not None:
+            try:
+                value = tool.mutation.reconcile(proposal.operation_id)
+                receipt = self._receipt(await maybe_await(value), proposal.operation_id)
+            except Exception:  # noqa: BLE001 - reconciliation failures stay unknown
+                receipt = None
+        if receipt is not None and receipt.state is ExecutionState.SUCCEEDED:
+            succeeded = WriteRecord(
+                proposal, ExecutionState.SUCCEEDED, authorization, receipt
+            )
+            try:
+                await self._persist_write(tool, succeeded)
+            except Exception as error:
+                unknown = WriteRecord(
+                    proposal, ExecutionState.OUTCOME_UNKNOWN, authorization, receipt
+                )
+                self._record_execution(unknown, dependencies, context, state)
+                raise _RunUnresolved(
+                    Unresolved(
+                        UnresolvedReason.UNKNOWN_WRITE_OUTCOME,
+                        (tool.id,),
+                        "the reconciled receipt could not be durably recorded",
+                        needed=proposal.operation_id,
+                    )
+                ) from error
+            self._record_execution(succeeded, dependencies, context, state)
+            return receipt
+        unknown = WriteRecord(
+            proposal,
+            ExecutionState.OUTCOME_UNKNOWN,
+            authorization,
+            receipt,
+        )
+        self._record_execution(unknown, dependencies, context, state)
+        raise _RunUnresolved(
+            Unresolved(
+                UnresolvedReason.UNKNOWN_WRITE_OUTCOME,
+                (tool.id,),
+                "the mutation outcome could not be established",
+                needed=proposal.operation_id,
+            )
+        )
+
+    async def _execute_mutation(
+        self,
+        tool: Tool,
+        node: CompiledNode,
+        inputs: Any,
+        arguments: Mapping[str, Any],
+        dependencies: tuple[str, ...],
+        context: RunContext,
+        state: _RunState,
+    ) -> ExecutionReceipt:
+        assert tool.mutation is not None
+        if self.authorizer is None:
+            raise _RunUnresolved(
+                Unresolved(
+                    UnresolvedReason.PERMISSION_DENIAL,
+                    (tool.id,),
+                    "the host did not supply an authorizer",
+                    needed="authorizer",
+                )
+            )
+        for binding in tool.bindings.values():
+            if isinstance(binding, JudgmentBinding):
+                acceptance_ref = state.acceptance_refs.get(binding.judgment)
+                if acceptance_ref is None:
+                    raise _RunUnresolved(
+                        Unresolved(
+                            UnresolvedReason.UNACCEPTED_JUDGMENT,
+                            (binding.judgment,),
+                            "a mutation input lacks semantic acceptance",
+                            needed=binding.judgment,
+                        )
+                    )
+                state.store.require_current(acceptance_ref, context.scope)
+        operation_id = f"{context.run_id}:tool:{tool.id}"
+        if tool.mutation.idempotency_parameter is not None:
+            operation_id = arguments[tool.mutation.idempotency_parameter]
+        evidence = tuple(
+            state.store.require_current(reference, context.scope)
+            for reference in dependencies
+        )
+        proposal = ActionProposal(
+            operation_id,
+            tool.id,
+            tool.version,
+            arguments,
+            context.scope,
+            source_versions(evidence),
+        )
+        proposed = WriteRecord(proposal, ExecutionState.PROPOSED)
+        await self._persist_write(tool, proposed)
+        if self.required_checkpoint is not None:
+            try:
+                checkpoint = await self.required_checkpoint.check(proposal)
+            except Exception as error:
+                raise _RunUnresolved(
+                    Unresolved(
+                        UnresolvedReason.UNACCEPTED_JUDGMENT,
+                        (tool.id,),
+                        "the required checkpoint failed closed",
+                        needed=self.required_checkpoint.id,
+                    )
+                ) from error
+            if not checkpoint.accepts(proposal):
+                raise _RunUnresolved(
+                    Unresolved(
+                        UnresolvedReason.UNACCEPTED_JUDGMENT,
+                        (tool.id,),
+                        "the required checkpoint did not accept the action",
+                        needed=checkpoint.status.value,
+                    )
+                )
+        try:
+            authorization = await maybe_await(
+                self.authorizer.authorize(proposal, context.authority_context)
+            )
+        except Exception as error:
+            raise _RunUnresolved(
+                Unresolved(
+                    UnresolvedReason.PERMISSION_DENIAL,
+                    (tool.id,),
+                    "the host authorizer failed closed",
+                    needed="authorizer",
+                )
+            ) from error
+        if not isinstance(
+            authorization, AuthorizationRecord
+        ) or not authorization.permits(proposal, context.clock()):
+            raise _RunUnresolved(
+                Unresolved(
+                    UnresolvedReason.PERMISSION_DENIAL,
+                    (tool.id,),
+                    "the exact action is not authorized",
+                    needed=proposal.digest,
+                )
+            )
+        authorized = WriteRecord(proposal, ExecutionState.AUTHORIZED, authorization)
+        await self._persist_write(tool, authorized)
+
+        try:
+            refreshed_arguments, refreshed_dependencies = self._tool_arguments(
+                tool, inputs, context, state
+            )
+            refreshed_evidence = tuple(
+                state.store.require_current(reference, context.scope)
+                for reference in refreshed_dependencies
+            )
+        except Exception as error:
+            raise _RunUnresolved(
+                Unresolved(
+                    UnresolvedReason.STALE_SOURCE,
+                    (tool.id,),
+                    "an approved action input is no longer current",
+                    needed="renew_authorization",
+                )
+            ) from error
+        refreshed = ActionProposal(
+            operation_id,
+            tool.id,
+            tool.version,
+            refreshed_arguments,
+            context.scope,
+            source_versions(refreshed_evidence),
+        )
+        if refreshed.digest != proposal.digest or not authorization.permits(
+            refreshed, context.clock()
+        ):
+            raise _RunUnresolved(
+                Unresolved(
+                    UnresolvedReason.STALE_SOURCE,
+                    (tool.id,),
+                    "the approved action changed before dispatch",
+                    needed="renew_authorization",
+                )
+            )
+        try:
+            current_authorization = await maybe_await(
+                self.authorizer.authorize(refreshed, context.authority_context)
+            )
+        except Exception as error:
+            raise _RunUnresolved(
+                Unresolved(
+                    UnresolvedReason.PERMISSION_DENIAL,
+                    (tool.id,),
+                    "the host authorizer failed during pre-dispatch revalidation",
+                    needed="authorizer",
+                )
+            ) from error
+        if not isinstance(
+            current_authorization, AuthorizationRecord
+        ) or not current_authorization.permits(refreshed, context.clock()):
+            raise _RunUnresolved(
+                Unresolved(
+                    UnresolvedReason.PERMISSION_DENIAL,
+                    (tool.id,),
+                    "the exact action authorization was revoked",
+                    needed=proposal.digest,
+                )
+            )
+        authorization = current_authorization
+
+        ledger = self._ledger_for(context)
+        assert self._semaphore is not None
+        attempt_id = f"{operation_id}:1"
+        self._emit(
+            context,
+            EventKind.OPERATION_STARTED,
+            operation_id=operation_id,
+            definition_id=tool.id,
+            question_id=node.id,
+            data={"definition_version": tool.version},
+        )
+        async with (
+            self._semaphore,
+            ledger.operation(
+                operation_id, deadline=context.deadline, clock=context.clock
+            ),
+        ):
+            await ledger.admit_tool_attempt(
+                attempt_id, deadline=context.deadline, clock=context.clock
+            )
+            await ledger.admit_write(
+                operation_id, deadline=context.deadline, clock=context.clock
+            )
+            self._emit(
+                context,
+                EventKind.ATTEMPT_ADMITTED,
+                operation_id=operation_id,
+                definition_id=tool.id,
+                question_id=node.id,
+                attempt_id=attempt_id,
+                data={"attempt_number": 1, "attempt_status": "started"},
+            )
+            in_flight = WriteRecord(proposal, ExecutionState.IN_FLIGHT, authorization)
+            await self._persist_write(tool, in_flight)
+            try:
+                value = await self._call(
+                    tool.function,
+                    refreshed_arguments,
+                    blocking=tool.blocking,
+                    timeout=min(tool.timeout, context.deadline - context.clock()),
+                )
+                receipt = self._receipt(value, operation_id)
+            except asyncio.CancelledError:
+                unknown = WriteRecord(
+                    proposal, ExecutionState.OUTCOME_UNKNOWN, authorization
+                )
+                try:
+                    await self._persist_write(tool, unknown)
+                except Exception as persistence_error:  # noqa: BLE001
+                    # Preserve cancellation; the local record remains inspectable.
+                    _ = persistence_error
+                self._record_execution(unknown, dependencies, context, state)
+                raise
+            except EffectNotStartedError as error:
+                failed = WriteRecord(
+                    proposal, ExecutionState.FAILED_BEFORE_EFFECT, authorization
+                )
+                await self._persist_write(tool, failed)
+                self._record_execution(failed, dependencies, context, state)
+                raise _ToolFailure("mutation failed before effect") from error
+            except Exception:  # noqa: BLE001 - post-dispatch failures are ambiguous
+                unknown = WriteRecord(
+                    proposal, ExecutionState.OUTCOME_UNKNOWN, authorization
+                )
+                try:
+                    await self._persist_write(tool, unknown)
+                except Exception as persistence_error:  # noqa: BLE001
+                    # Reconciliation is still safer than treating this as failure.
+                    _ = persistence_error
+                return await self._reconcile_mutation(
+                    tool,
+                    proposal,
+                    authorization,
+                    dependencies,
+                    context,
+                    state,
+                )
+        if receipt.state is ExecutionState.SUCCEEDED:
+            succeeded = WriteRecord(
+                proposal, ExecutionState.SUCCEEDED, authorization, receipt
+            )
+            try:
+                await self._persist_write(tool, succeeded)
+            except Exception as error:
+                unknown = WriteRecord(
+                    proposal, ExecutionState.OUTCOME_UNKNOWN, authorization, receipt
+                )
+                self._record_execution(unknown, dependencies, context, state)
+                raise _RunUnresolved(
+                    Unresolved(
+                        UnresolvedReason.UNKNOWN_WRITE_OUTCOME,
+                        (tool.id,),
+                        "the successful receipt could not be durably recorded",
+                        needed=proposal.operation_id,
+                    )
+                ) from error
+            self._record_execution(succeeded, dependencies, context, state)
+            return receipt
+        if receipt.state is ExecutionState.FAILED_BEFORE_EFFECT:
+            failed = WriteRecord(
+                proposal, ExecutionState.FAILED_BEFORE_EFFECT, authorization, receipt
+            )
+            await self._persist_write(tool, failed)
+            self._record_execution(failed, dependencies, context, state)
+            raise _ToolFailure("mutation failed before effect")
+        unknown = WriteRecord(
+            proposal, ExecutionState.OUTCOME_UNKNOWN, authorization, receipt
+        )
+        await self._persist_write(tool, unknown)
+        return await self._reconcile_mutation(
+            tool,
+            proposal,
+            authorization,
+            dependencies,
+            context,
+            state,
+        )
+
     async def _execute_tool(
         self,
         tool: Tool,
@@ -545,30 +973,37 @@ class Runtime:
         context: RunContext,
         state: _RunState,
     ) -> None:
-        if tool.effect is ToolEffect.MUTATION:
-            raise _RunUnresolved(
-                Unresolved(
-                    UnresolvedReason.PERMISSION_DENIAL,
-                    (tool.id,),
-                    "the read-only runtime does not dispatch mutations",
-                    needed=tool.id,
-                )
-            )
         run_id = context.run_id
         assert run_id is not None
         arguments, dependencies = self._tool_arguments(tool, inputs, context, state)
         operation_id = f"{run_id}:tool:{tool.id}"
+        if (
+            tool.mutation is not None
+            and tool.mutation.idempotency_parameter is not None
+        ):
+            operation_id = arguments[tool.mutation.idempotency_parameter]
         try:
-            value = await self._run_read_operation(
-                operation_id=operation_id,
-                definition_id=tool.id,
-                node_id=node.id,
-                function=tool.function,
-                arguments=arguments,
-                blocking=tool.blocking,
-                timeout=tool.timeout,
-                context=context,
-            )
+            if tool.effect is ToolEffect.MUTATION:
+                value = await self._execute_mutation(
+                    tool,
+                    node,
+                    inputs,
+                    arguments,
+                    dependencies,
+                    context,
+                    state,
+                )
+            else:
+                value = await self._run_read_operation(
+                    operation_id=operation_id,
+                    definition_id=tool.id,
+                    node_id=node.id,
+                    function=tool.function,
+                    arguments=arguments,
+                    blocking=tool.blocking,
+                    timeout=tool.timeout,
+                    context=context,
+                )
             value = validate_value(tool.output_type, value, f"{tool.id} output")
         except asyncio.CancelledError:
             raise
@@ -737,8 +1172,68 @@ class Runtime:
                     judgment, decision_inputs, context
                 )
         state.findings[judgment.id] = decision.answer
-        state.decision_refs[judgment.id] = decision.evidence_refs[-1]
+        judgment_ref = decision.evidence_refs[-1]
+        state.decision_refs[judgment.id] = judgment_ref
         state.usages.append(decision.usage)
+        if judgment.acceptance_policy is not None:
+            policy = self.acceptance_policies.get(judgment.acceptance_policy)
+            if policy is None:
+                raise _RunUnresolved(
+                    Unresolved(
+                        UnresolvedReason.UNACCEPTED_JUDGMENT,
+                        (judgment.id,),
+                        "the judgment acceptance policy is unavailable",
+                        needed=judgment.acceptance_policy,
+                    )
+                )
+            try:
+                acceptance = await policy.evaluate(
+                    PolicyInput(
+                        decision.answer,
+                        tuple(evidence.values()),
+                        None
+                        if judgment.candidate_set is None
+                        else state.candidates[judgment.candidate_set].coverage.value,
+                    )
+                )
+            except Exception as error:
+                raise _RunUnresolved(
+                    Unresolved(
+                        UnresolvedReason.UNACCEPTED_JUDGMENT,
+                        (judgment.id,),
+                        "the judgment acceptance policy failed closed",
+                        needed=judgment.acceptance_policy,
+                    )
+                ) from error
+            acceptance_ref = f"{context.run_id}:accept:{judgment.id}"
+            state.store.add(
+                AcceptanceEvidence(
+                    id=acceptance_ref,
+                    value=acceptance,
+                    source_id=f"policy:{policy.id}",
+                    scope=context.scope,
+                    observed_at=context.clock(),
+                    dependencies=(judgment_ref,),
+                    judgment_ref=judgment_ref,
+                    policy_id=acceptance.policy_id,
+                    policy_version=acceptance.policy_version,
+                )
+            )
+            state.acceptance_refs[judgment.id] = acceptance_ref
+            if acceptance.status is not AcceptanceStatus.ACCEPT:
+                reason = (
+                    UnresolvedReason.REFUTED_CLAIM
+                    if acceptance.status is AcceptanceStatus.REJECT
+                    else UnresolvedReason.UNACCEPTED_JUDGMENT
+                )
+                raise _RunUnresolved(
+                    Unresolved(
+                        reason,
+                        (judgment.id,),
+                        "the judgment was not semantically accepted",
+                        needed=acceptance.status.value,
+                    )
+                )
 
     async def _execute_node(
         self,
@@ -835,6 +1330,11 @@ class Runtime:
                 )
             )
         for judgment_id, reference in state.decision_refs.items():
+            if judgment_id in state.acceptance_refs:
+                state.store.require_current(
+                    state.acceptance_refs[judgment_id], context.scope
+                )
+                continue
             record = state.store.require_current(reference, context.scope)
             if not isinstance(record, ModelJudgment):
                 continue
@@ -856,6 +1356,9 @@ class Runtime:
                     policy_id=acceptance.policy_id,
                     policy_version=acceptance.policy_version,
                 )
+            )
+            state.acceptance_refs[judgment_id] = (
+                f"{context.run_id}:accept:{judgment_id}"
             )
         return proposed
 
@@ -884,20 +1387,6 @@ class Runtime:
             definition.input_type, inputs, f"{definition.id} input"
         )
         tools, judgments, providers = self._definitions(definition)
-        if any(tool.effect is ToolEffect.MUTATION for tool in tools.values()):
-            unresolved = Unresolved(
-                UnresolvedReason.PERMISSION_DENIAL,
-                (definition.id,),
-                "the read-only runtime cannot admit mutation tools",
-            )
-            return self._record_result(
-                run_id,
-                RunResult(
-                    TerminalStatus.UNRESOLVED,
-                    partial_findings=(),
-                    unresolved=(unresolved,),
-                ),
-            )
         self._emit(
             run_context,
             EventKind.OPERATION_STARTED,
@@ -905,7 +1394,7 @@ class Runtime:
             definition_id=definition.id,
             data={"definition_version": definition.version},
         )
-        state = _RunState(store, {}, {}, {}, {}, {}, [])
+        state = _RunState(store, {}, {}, {}, {}, {}, {}, [])
         try:
             initial = compile_agent(
                 definition,

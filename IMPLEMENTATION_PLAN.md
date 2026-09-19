@@ -33,7 +33,8 @@ The ten additions in Section 5.9 are included in the initial target and tracked 
 - JF-07 adds schema-versioned sanitized events, allowlisted result serialization, permitted exact inspection, omitted-field manifests, and actionable public diagnostics.
 - JF-08 adds typed candidate-provider bindings, package configuration identity, a generic document-evidence package, public synthetic authoring examples, and evaluator-separated regression descriptors.
 - JF-09 adds the shared read-only scheduler, exact-source completion, isolated run state, shared admission, stale-input rejection, and explicit terminal outcomes.
-- There is no guarded write execution, CI configuration, or selected license yet.
+- JF-10 adds versioned semantic acceptance, exact-action checkpoints and authorization, durable host intent, guarded synthetic mutations, explicit receipts, and reconciliation without blind retry.
+- There is no bounded investigation, CI configuration, or selected license yet.
 - Generated environments and local build artifacts remain ignored.
 - JF-01 freezes the initial public names and signatures, the local `jev_frame` import name, run-local persistence, and host-owned acceptance thresholds.
 - `.codex/config.toml` currently contains a comment and does not enforce a model selection; the continuation note now reflects this.
@@ -917,6 +918,14 @@ Focused offline checks cover T18 through T23 using deterministic provider and to
 8. Provide a framework-neutral required-checkpoint contract, testing failures and changed artifacts with a fake host; named adapters later prove dispatch-path coverage in Scenario F.
 
 **Acceptance:** no confidence value bypasses host authority, stale source versions prevent effects, and a committed-but-timed-out operation results in one verified effect after reconciliation.
+
+**JF-10 result:** implemented in `src/jev_frame/policy.py` and the existing shared runtime.
+Versioned `AcceptancePolicy` receives the native primitive answer, current evidence records and candidate coverage and records accept, investigate, reject or handoff separately from execution authority.
+`ActionProposal` computes a stable digest over the exact tool version, validated arguments, scope, source versions and mutation effect; the host authorizer is consulted again immediately before dispatch so denial, expiry or revocation fails closed.
+`RequiredCheckpoint` returns an action-digest-bound record, and checkpoint errors or a changed action cannot reuse an earlier decision.
+The write path records proposed, authorized and in-flight states in the host's durable intent store before dispatch, validates typed receipts, marks possibly accepted failures and cancellation outcome-unknown, and uses only the declared reconciliation lookup without blind retry.
+An explicit string `MutationContract.idempotency_parameter` resolves the prior contract ambiguity between claiming idempotency support and identifying the actual downstream key argument.
+Focused synthetic checks cover T24 through T30 and the neutral required-checkpoint foundation for T48; no real effect, live provider, database or exactly-once claim is involved.
 Real external mutations remain disabled unless separately authorized and accepted for the host application.
 
 ### Phase 7 — Adaptive investigation and selective recomputation

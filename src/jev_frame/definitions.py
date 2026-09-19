@@ -320,6 +320,7 @@ class MutationContract:
     supports_idempotency_key: bool
     reconcile: Callable[[str], Any] | None = None
     durable_intent_required: bool = True
+    idempotency_parameter: str | None = None
 
     def __post_init__(self) -> None:
         if (
@@ -332,6 +333,16 @@ class MutationContract:
         if not self.supports_idempotency_key and self.reconcile is None:
             raise DefinitionError(
                 "a mutation needs idempotency support or reconciliation"
+            )
+        if self.supports_idempotency_key:
+            if self.idempotency_parameter is None:
+                raise DefinitionError(
+                    "idempotency support requires its tool parameter name"
+                )
+            _text(self.idempotency_parameter, "idempotency parameter")
+        elif self.idempotency_parameter is not None:
+            raise DefinitionError(
+                "an idempotency parameter requires idempotency support"
             )
 
 
@@ -401,6 +412,19 @@ class Tool:
                 f"cannot resolve annotations for tool {self.id}"
             ) from error
         parameters = signature.parameters
+        if self.mutation is not None and self.mutation.idempotency_parameter not in {
+            None,
+            *parameters,
+        }:
+            raise DefinitionError(
+                "mutation idempotency parameter is not a tool parameter"
+            )
+        if (
+            self.mutation is not None
+            and self.mutation.idempotency_parameter is not None
+            and hints[self.mutation.idempotency_parameter] is not str
+        ):
+            raise DefinitionError("mutation idempotency parameter must be a string")
         for parameter in parameters.values():
             if parameter.kind in {
                 inspect.Parameter.POSITIONAL_ONLY,

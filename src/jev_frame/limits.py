@@ -56,9 +56,11 @@ class LedgerSnapshot:
     provider_attempts: int
     submitted_questions: int
     tool_attempts: int
+    writes: int
     active_operations: int
     attempt_ids: tuple[str, ...]
     tool_attempt_ids: tuple[str, ...]
+    write_ids: tuple[str, ...]
     measurements: tuple[UsageMeasurement, ...]
 
 
@@ -72,6 +74,7 @@ class UsageLedger:
         self._lock = asyncio.Lock()
         self._attempt_questions: dict[str, int] = {}
         self._tool_attempts: set[str] = set()
+        self._writes: set[str] = set()
         self._active: set[str] = set()
         self._operations: set[str] = set()
         self._measurements: dict[
@@ -166,6 +169,23 @@ class UsageLedger:
                 raise BudgetExhaustedError("tool attempt limit exhausted")
             self._tool_attempts.add(attempt_id)
 
+    async def admit_write(
+        self,
+        operation_id: str,
+        *,
+        deadline: float,
+        clock: Callable[[], float],
+    ) -> None:
+        if type(operation_id) is not str or not operation_id:
+            raise ValueError("write operation id must be a non-empty string")
+        self._check_deadline(deadline, clock)
+        async with self._lock:
+            if operation_id in self._writes:
+                return
+            if len(self._writes) >= self.limits.writes:
+                raise BudgetExhaustedError("write limit exhausted")
+            self._writes.add(operation_id)
+
     async def record_estimate(
         self,
         operation_id: str,
@@ -230,8 +250,10 @@ class UsageLedger:
                 len(self._attempt_questions),
                 sum(self._attempt_questions.values()),
                 len(self._tool_attempts),
+                len(self._writes),
                 len(self._active),
                 tuple(self._attempt_questions),
                 tuple(self._tool_attempts),
+                tuple(self._writes),
                 tuple(self._measurements.values()),
             )
