@@ -3,9 +3,11 @@
 Prepared on 2026-09-17 against repository revision `5e99044` and the current [README](README.md).
 Extended on 2026-09-19 to make existing LLM frameworks, direct decision calls, and objective-driven hybrid planning part of the proposed scope.
 The 2026-09-19 issue-planning revision also accepts the ten developer-experience and capability additions described in Section 5.9.
-This is an implementation handoff, not an implementation or a claim that the proposed API exists.
+JF-01 refreshed provider and framework compatibility on 2026-09-19 and froze the initial contract documented in the README and Section 4.
+This remains an implementation handoff, not a claim that the frozen API imports exist.
 Use Sol with high reasoning effort when implementation is separately authorized.
-The current request authorizes documentation reconciliation, GitHub issue creation, and committing and pushing these documents to main; it does not start framework implementation.
+The 2026-09-19 implementation request authorizes local implementation, tests, local builds, regular commits, and issue updates on branch `codex/jev-frame-implementation`.
+It does not authorize pushing, pull requests, publication, deployment, licensing, paid provider calls, or consequential real effects.
 
 ## 1. Outcome and scope
 
@@ -26,7 +28,7 @@ The ten additions in Section 5.9 are included in the initial target and tracked 
 - The repository contains the README, project instructions, Git exclusions, and Codex initialization files.
 - There is no implementation, package manifest, test suite, executable example, CI configuration, or selected license.
 - The working tree was clean when planning began.
-- Public names, package naming, persistence details, acceptance thresholds, and final signatures remain proposals.
+- JF-01 freezes the initial public names and signatures, the local `jev_frame` import name, run-local persistence, and host-owned acceptance thresholds.
 - `.codex/config.toml` currently contains a comment and does not enforce a model selection; the continuation note now reflects this.
 - Select Sol high explicitly when starting implementation.
 
@@ -45,14 +47,14 @@ No level authorizes publication or resolves licensing.
 
 ## 2. Verified provider facts and reuse decision
 
-Official documentation was fetched on 2026-09-17.
-The documentation must be refreshed at implementation time because the SDK is changing quickly.
+Official documentation and package metadata were refreshed on 2026-09-19.
+The documentation must still be checked when the adapter issue is implemented because the SDK is changing quickly.
 These facts constrain the adapter; the framework contracts in later sections are proposed project decisions.
 
 | Verified fact | Implementation consequence | Primary source |
 |---|---|---|
 | The Python package is `typesafe-sdk`, with `AsyncTypeSafeClient` and `TypeSafeClient`. | Reuse official transport, authentication, request handling, and response parsing. | [Python SDK](https://docs.typesafe.ai/sdk/python.md) |
-| The documented SDK changelog lists v0.6.0 on 2026-09-15 and changes Score criteria to an ordered sequence. | Select and test a concrete SDK version instead of copying older dictionary-based examples. | [SDK changelog](https://docs.typesafe.ai/sdk/python/changelog.md) |
+| The documented SDK changelog lists v0.7.0 on 2026-09-18, changes serialization from `msgspec` to Pydantic, and adds `response_model`; v0.6.0 changed Score criteria to an ordered sequence. | Pin and test SDK 0.7.0 instead of copying older response or dictionary-based Score examples. | [SDK changelog](https://docs.typesafe.ai/sdk/python/changelog.md) |
 | Every question in a request sees the same state and is evaluated independently. | Batch only compatible ready judgments and split genuine dependencies across calls. | [State](https://docs.typesafe.ai/concepts/state.md) |
 | Question IDs are response routing keys and are not inference inputs. | Put subject identity, relevant paths, and full question meaning in instructions. | [Primitives](https://docs.typesafe.ai/primitives.md) |
 | Choice returns a label, a distribution, and confidence. | Preserve all three and verify the label against the supplied snapshot. | [Answers](https://docs.typesafe.ai/sdk/python/api/types/responses.md) |
@@ -79,14 +81,14 @@ Their [Pydantic release history](https://github.com/pydantic/pydantic-ai/release
 No existing framework was installed or benchmarked during planning.
 Sol should confirm maintenance and compatibility during Phase 0, then stop surveying unless a specific requirement remains unmet.
 
-### 2.2 Dependency and packaging defaults
+### 2.2 Frozen dependency and packaging baseline
 
-- Propose Python 3.11 or newer for standard asynchronous task groups and timeout handling, subject to the selected SDK's actual supported versions.
-- Use `jev_frame` as a provisional local import name without claiming ownership of a package registry name.
-- Use the official SDK as a direct runtime dependency.
-- Prefer dataclasses for internal records and one established validation library for typed application boundaries.
-- Provisionally use Pydantic v2 `TypeAdapter` for supported Python input/output types and strict validation, unless a Phase 0 compatibility check demonstrates that reusing the SDK's validation dependency gives equally clear behavior with less machinery.
-- Declare any validation dependency used directly instead of relying on it being installed transitively.
+- Require Python 3.11 or newer for standard asynchronous task groups and timeout handling; CPython 3.11.15 and 3.14.6 are the JF-01 compatibility points, not the final delivery matrix.
+- Use `jev_frame` as the local import name without claiming ownership of a package registry name.
+- Pin the initial official provider dependency to `typesafe-sdk==0.7.0`.
+- Declare `pydantic>=2.12,<3` directly and use strict `TypeAdapter` validation at typed application boundaries.
+- The isolated JF-01 checks resolved Pydantic 2.13.5 with SDK 0.7.0 on both tested Python versions.
+- Prefer frozen dataclasses for internal records and Pydantic only at the supported public boundary.
 - Do not implement a new recursive Python type validator, general schema language, or plugin discovery system.
 - Use standard-library `unittest`, including asynchronous test support, unless actual test complexity justifies a different runner.
 - Create a manifest and build configuration only after implementation authorization, and keep build artifacts local.
@@ -96,7 +98,7 @@ Sol should confirm maintenance and compatibility during Phase 0, then stop surve
 
 ### 2.3 Framework integration sources and reuse update
 
-Official framework documentation was inspected on 2026-09-19 for this extension.
+Official framework documentation and PyPI package metadata were inspected on 2026-09-19 for this extension and JF-01.
 [LangChain tools](https://docs.langchain.com/oss/python/langchain/tools) support callable tools and host-injected context.
 [LangGraph workflows and agents](https://docs.langchain.com/oss/python/langgraph/workflows-agents) provide the outer agent loop and explicit control-flow placement.
 [Pydantic AI tools](https://pydantic.dev/docs/ai/tools-toolsets/tools/) offer functions, context injection, and reusable toolsets.
@@ -105,8 +107,11 @@ That integration's documented fallback can omit an earlier Jev request from fina
 These are specific accounting and interception cases to verify before advertising adapter guarantees.
 Use native functionality when it meets the contract; preserve Jev primitive semantics and metadata through the official SDK decision path when a native mapping is insufficient.
 
-This was documentation verification, not an SDK installation or compatibility test.
-Direct retrieval of the TypeSafe documentation index, Python SDK page, and state page failed during this update, so Section 2's provider facts remain dated 2026-09-17 and need a fresh check in Phase 0.
+The current optional compatibility targets are Pydantic AI 2.46.0, LangChain 1.4.2, and LangGraph 1.2.11; their dedicated issues must install and exercise those exact interfaces with offline doubles before support is claimed.
+Pydantic AI's `TypeSafeModel` exposes confidence, distributions, unrounded scores, returned model identity, and Jev request count through provider details when available.
+Its fallback response can omit earlier Jev usage, its generic request count can understate multi-request Jev steps, and function-tool hooks do not intercept output functions.
+The canonical Jev-Frame evidence path therefore remains the official TypeSafe SDK adapter, while native Pydantic AI support is reused as a host integration with explicit metadata coverage.
+LangChain's current `ToolRuntime` keeps invocation context outside the model-visible schema, and LangGraph leaves outer-loop and tool-node execution ownership with the host.
 Keep the scope of tested native support explicit rather than promising compatibility with every LLM framework.
 
 ## 3. Invariants that every phase must preserve
@@ -133,10 +138,10 @@ Assign these identifiers to acceptance checks so future changes can be traced to
 | I16 | One owner controls each outer loop and each tool dispatch; a decision call never silently launches a second agent loop. |
 | I17 | Foreign model output remains a proposal, and foreign usage or effects outside the integration boundary are not claimed as controlled or fully accounted. |
 
-## 4. Proposed public contract
+## 4. Frozen initial public contract
 
-All names and signatures in this section are a specification target, not working imports.
-Freeze the smallest coherent contract in Phase 0 and change it only when a concrete scenario exposes a problem.
+All names and signatures in this section are a frozen specification target, not working imports.
+Change them only through a synchronized contract revision when a concrete scenario exposes a problem.
 Prefer ordinary Python definitions and explicit callables over decorators with hidden behavior.
 Keep SDK-specific objects behind the provider boundary so applications do not need to construct transport requests.
 
@@ -171,8 +176,8 @@ Reject conflicting capability identifiers instead of silently replacing an exist
 
 ### 4.2 Supported types and argument sources
 
-Document a finite initial type subset rather than promising every Python annotation.
-Start with strict scalar values, string-keyed mappings, lists, enums, literals, optional values, dataclasses, and supported typed records.
+The finite initial subset is `str`, `int`, `float`, `bool`, `None`, string-valued enums, literals, lists, string-keyed mappings, `T | None`, dataclasses, and Pydantic `BaseModel` records composed from the same subset.
+General unions, tuples, sets, unresolved annotations, variadic and positional-only parameters, arbitrary objects, and unsupported generics are rejected initially.
 Reject unsupported signatures, unresolved annotations, variadic parameters, and arbitrary object values during definition validation.
 Do not coerce a string into an integer, a boolean into an identifier, or a fabricated default into a source value silently.
 
@@ -492,7 +497,7 @@ Other frameworks may consume the callable API without an integration-specific de
 ### 5.9 Developer experience and capability baseline
 
 All ten features below are part of the planned initial delivery.
-Public convenience names remain provisional until the contract issue fixes them, and none is an implemented API yet.
+JF-01 freezes the public convenience names in the README, and none is an implemented API yet.
 
 | ID | Feature | Implementation contract |
 |---|---|---|
@@ -720,7 +725,7 @@ If a phase is blocked on live access, complete its offline work and record the e
 3. Verify SDK Python requirements and choose a specific tested version without calling the paid API.
 4. Confirm the finite supported annotation subset and boundary validation dependency.
 5. Write the proposed public API specification into the README, including nonexecutable representative authoring shapes until code exists.
-6. Record run statuses, primitive response variants, default denial behavior, provisional import name, and persistence limitations.
+6. Record run statuses, primitive response variants, default denial behavior, the local import name, and persistence limitations.
 7. Define synthetic fixture cases and their expected evidence paths separately from their model-visible inputs.
 8. Select a validation split, a held-out split, and a policy-version format before tuning semantic thresholds.
 9. Specify the minimal direct decision API, planner responses, and adapter ownership contracts for the three usage modes.
@@ -729,6 +734,11 @@ If a phase is blocked on live access, complete its offline work and record the e
 An existing host loop can use Jev without an `AgentDefinition`, and objective-driven planning composes through registered capabilities.
 Every open issue is marked either a reversible default, a compatibility check, or an owner decision.
 Licensing and publication may remain unresolved because they do not block local implementation.
+
+**JF-01 result:** completed as a documentation-only contract freeze.
+The README now fixes the supported types, bindings, entry points, failure variants, ownership rules, scenario paths, fixture identity, split rules, and policy versioning.
+Read-only isolated checks imported SDK 0.7.0 and instantiated Choice, Noul, and Score on CPython 3.11.15 and 3.14.6 without provider access.
+Named-framework execution remains assigned to JF-12 and JF-13 rather than being claimed from documentation inspection.
 
 ### Phase 1 — Package skeleton and typed boundaries
 
@@ -1079,8 +1089,8 @@ Without those criteria, report the measured behavior and keep automatic conseque
 
 | Decision | Default for implementation | Revisit when |
 |---|---|---|
-| Public API naming | Use the proposed concepts and freeze final names in Phase 0. | A representative scenario exposes ambiguity or unnecessary configuration. |
-| Package name | Use `jev_frame` locally, with no public name claim. | The owner authorizes publication planning. |
+| Public API naming | Use the names frozen in README `Frozen initial contract` and Section 4. | A representative scenario exposes ambiguity or unnecessary configuration through a synchronized contract revision. |
+| Package name | Use `jev_frame` locally, with no public registry name claim. | The owner authorizes publication planning. |
 | License | Leave undecided. | The owner selects a license before distribution or publication. |
 | Runtime form | An embeddable decision API and optional shared agent scheduler, with one outer-loop owner per integration. | A concrete integration requires another execution surface. |
 | Storage | Run-local memory plus host callbacks and explicit durability contracts for consequential writes. | Crash-safe resume becomes a funded and explicitly scoped requirement. |
@@ -1160,3 +1170,13 @@ At every substantive stopping point, update a compact continuation entry in `.co
 - Evidence: GitHub tracker #1 and implementation issues #2–#23 are published, and every posted body matches its prepared specification.
 - Verification: the 22-task prerequisite graph is acyclic and every F01–F10 feature and T01–T65 check is mapped; complete the documentation diff and remote commit checks before handoff.
 - Next action: implement the first contract issue when requested, using Sol high and the roadmap's prerequisites.
+
+### JF-01 contract freeze checkpoint — 2026-09-19
+
+- Objective: freeze the public contracts and refresh provider and host-framework compatibility without creating runtime code.
+- Decisions: Python 3.11 or newer, local import `jev_frame`, `typesafe-sdk==0.7.0`, direct `pydantic>=2.12,<3`, strict finite annotation support, ordinary explicit registrations, and the public names in README `Frozen initial contract`.
+- Compatibility: isolated imports and primitive construction passed on CPython 3.11.15 and 3.14.6 with SDK 0.7.0 and Pydantic 2.13.5; no API request was made.
+- Framework evidence: current documentation and metadata were inspected for Pydantic AI 2.46.0, LangChain 1.4.2, and LangGraph 1.2.11; executable adapter conformance remains owned by JF-12 and JF-13.
+- Contract coverage: README walks Scenarios A-L and specifies direct decisions, agent runs, planner variants, bindings, evidence, policy, authorization, events, fixtures, splits, and failure behavior.
+- Remaining gates: package/runtime implementation starts at JF-02, live provider compatibility requires separate authorization, licensing remains undecided, and no publication is authorized.
+- Next action: create the minimal package manifest and typed definition boundaries for JF-02, then prove T01 and T02 offline.

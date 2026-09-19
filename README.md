@@ -2,8 +2,8 @@
 
 A proposed Python framework for building Jev agents and integrating Jev decisions into existing LLM agents.
 
-**Status: design and repository initialization only.**
-There is no installable framework, implementation, executable example, or published package yet.
+**Status: public contracts frozen; implementation starts with JF-02.**
+There is no installable framework, runtime implementation, executable example, or published package yet.
 This is an independent project, not an official TypeSafe product.
 
 ## Purpose
@@ -44,8 +44,9 @@ Execution remains bounded by provider capacity, tool limits, budgets, and permis
 
 ## Intended developer experience
 
-Python is the proposed first language.
-Public names and signatures are not finalized, and this README does not present fictional installation or usage commands.
+Python is the first implementation language.
+The initial public names and behavioral contracts below are frozen for local implementation.
+They may change only through a documented contract revision that updates affected tests and compatibility notes.
 
 A developer should be able to:
 
@@ -60,6 +61,174 @@ A developer should be able to:
 
 Simple agents should require little configuration.
 Advanced applications should be able to control candidate providers, decision dependencies, persistence, and acceptance policy through the same runtime.
+
+## Frozen initial contract
+
+This section fixes the JF-01 contract surface without claiming that the imports exist yet.
+The authoring shapes are specification examples and deliberately omit installation commands until JF-02 creates the package.
+
+### Compatibility baseline
+
+| Component | Initial contract | Read-only verification on 2026-09-19 |
+|---|---|---|
+| Python | Support Python 3.11 and newer; the delivery issue records the exact tested matrix. | `typesafe-sdk==0.7.0` imported and its question models instantiated on CPython 3.11.15 and 3.14.6. |
+| TypeSafe SDK | Use the official `typesafe-sdk==0.7.0` transport and response models. | PyPI metadata declares Python 3.10 or newer; local isolated resolution used Pydantic 2.13.5. |
+| Boundary validation | Declare Pydantic directly as `pydantic>=2.12,<3` and use strict `TypeAdapter` validation. | SDK 0.7.0 itself requires Pydantic 2.12 or newer after replacing `msgspec`. |
+| LangChain and LangGraph | Keep optional; target the public tool, `ToolRuntime`, node, and agent interfaces current in LangChain 1.4.2 and LangGraph 1.2.11. | Current documentation keeps immutable invocation context out of the model-visible tool schema and assigns tool execution to the host loop or `ToolNode`. |
+| Pydantic AI | Keep optional; target Pydantic AI 2.46.0 and reuse `TypeSafeModel` where its translated metadata is sufficient. | Current native support exposes confidence, probabilities, scores, returned model identity, and Jev request count in provider details, with the limitations below. |
+
+The core records the requested and returned TypeSafe model names separately.
+Moving aliases such as `jev-latest` are allowed for experiments but are not reusable evidence across provider calls unless the returned version is pinned and recorded.
+The deterministic suite never needs credentials or a live provider call.
+
+Pydantic AI native Jev integration is a host adapter rather than Jev-Frame's canonical provider record.
+It rounds Noul values when mapped to `bool`, rounds Score values when mapped to an integer rubric, and keeps fuller values in provider details only where the native mapping exposes them.
+Its fallback response can omit usage for an earlier Jev attempt, `RequestUsage.requests` does not carry Jev's actual multi-request count, and output functions bypass function-tool execution hooks.
+Jev-Frame therefore uses the official SDK adapter for canonical `ChoiceAnswer`, `NoulAnswer`, and `ScoreAnswer` evidence, while a Pydantic AI adapter reports observable native metadata and marks missing attempt usage explicitly unknown.
+
+### Supported values and strict validation
+
+The initial supported application type subset is `str`, `int`, `float`, `bool`, `None`, string-valued `Enum`, `Literal`, `list[T]`, `dict[str, T]`, `T | None`, dataclasses, and Pydantic `BaseModel` records composed from the same subset.
+Integers and booleans remain distinct, mapping keys must be strings, arbitrary objects are rejected, and only `T | None` is accepted as a general union.
+Unresolved annotations, variadic parameters, positional-only parameters, unsupported generics, and callable return annotations outside this subset are definition errors.
+Strict validation does not coerce strings to numbers, booleans to identifiers, or arbitrary mappings to application objects silently.
+
+An omitted argument is represented internally by a dedicated missing sentinel and is different from an explicit `None`.
+Function defaults are used only through `DefaultBinding`, and the recorded binding explains why the default was selected.
+All definitions are immutable after validation and use an explicit semantic version string plus a separately computed compiled digest.
+
+Every tool parameter has exactly one of these public binding definitions:
+
+| Binding | Source and rule |
+|---|---|
+| `TaskInputBinding(path)` | Copy a strict value from the validated run input at an explicit path. |
+| `HostContextBinding(key)` | Resolve a host dependency that is never model-editable or model-visible unless separately projected. |
+| `ConstantBinding(value)` | Use an immutable definition value that validates against the parameter type. |
+| `DefaultBinding()` | Omit the argument so the declared callable default applies. |
+| `CandidateBinding(snapshot, selection)` | Resolve an opaque selected key against the exact recorded snapshot and scope. |
+| `SourceBinding(evidence, field_or_span)` | Copy an exact field or character span from an immutable source version. |
+| `DerivationBinding(transformation, inputs)` | Run an approved deterministic transformation and record its version and input evidence. |
+| `JudgmentBinding(judgment)` | Use a current accepted prior judgment in a later evaluation boundary. |
+| `GeneratedBinding(capability)` | Accept a typed proposal only from an explicitly registered generation capability. |
+
+`BindingGroup` validates correlated candidate tuples after individual fields validate.
+A missing or duplicate binding is a `DefinitionError` before any tool or provider access.
+
+### Public definitions and entry points
+
+`DecisionClient` is the smallest usable surface.
+It owns no outer loop and exposes `evaluate`, `select`, `filter`, `assess`, `score`, and `extract_source` as asynchronous operations over a supplied `DecisionContext`.
+`evaluate` and the five convenience operations reuse the same compiler, evidence state, provider adapter, admission ledger, and response validation as the agent runtime.
+`extract_source` is deterministic and performs no provider request.
+`filter` preserves one verdict or unresolved record per input rather than silently dropping uncertain items.
+
+The direct authoring shape requires no `AgentDefinition` and starts no scheduler:
+
+```python
+# Contract shape only; these imports become executable in later issues.
+judgment = Judgment(
+    id="supports_statement",
+    version="1.0.0",
+    primitive=NoulQuestion(instructions="Does this document support the statement?"),
+    subjects=(Subject("statement"), Subject("document")),
+    evidence=(EvidenceSelector("document_excerpt"),),
+)
+decision = await decision_client.evaluate(judgment, inputs, decision_context)
+```
+
+`Judgment` contains a stable ID and version, one primitive definition, explicit subject selectors, evidence selectors, candidate or rubric definitions, dependency IDs, applicability, and an optional acceptance-policy ID.
+Its primitive is exactly one of `ChoiceQuestion`, `NoulQuestion`, or `ScoreQuestion`.
+`ChoiceAnswer` retains the selected key, full distribution, and confidence.
+`NoulAnswer` retains only the probability of yes and never fabricates confidence.
+`ScoreAnswer` retains the fractional expected score, ordered legend, distribution, and confidence.
+
+`DecisionResult` contains the primitive answer, subjects, evidence and candidate references, input fingerprint, requested and returned model IDs, usage coverage, request and question counts, and an optional `AcceptanceRecord`.
+No acceptance policy means the result is `unassessed`; the call may still succeed for advisory use, but it cannot complete an agent run or authorize an action.
+Definition and caller-input errors fail before dispatch, provider and response-validation failures are typed errors, and `asyncio.CancelledError` is recorded for inspection and then propagated.
+
+`AgentDefinition[InputT, OutputT]` groups a stable ID and version, objective family, input and output types, explicit tools, judgments, candidate providers, capability packages, a `CompletionContract`, and an `OperatingPolicy`.
+`Tool` wraps an ordinary callable with purpose, strict input and output types, bindings, evidence requirements and possible outputs, scope requirements, timeout, retry ownership, and an explicit `PURE`, `READ`, or `MUTATION` effect.
+`CandidateSet` is an immutable ordered snapshot with opaque keys, model-visible descriptions, execution-only values, source versions, retrieval parameters, coverage, and an optional bounded expansion reference.
+`CapabilityPackage` is an explicit versioned group of definitions and bindable application functions; identifier collisions fail instead of replacing registrations.
+
+`Runtime.run` is the asynchronous agent entry point.
+`Runtime.run_sync` delegates to it and raises a clear error when called from a running event loop.
+Every run has isolated append-only state while concurrent runs share only the configured provider, executor limits, and `UsageLedger`.
+`RunResult` has one terminal status from `completed`, `unresolved`, `failed`, or `cancelled`; a completed value exists only when the completion contract and evidence policy accept it.
+
+The agent authoring shape registers meanings and dependencies while the shared runtime owns scheduling:
+
+```python
+# Contract shape only; application callables remain explicit registrations.
+definition = AgentDefinition(
+    id="document_support",
+    version="1.0.0",
+    input_type=SupportRequest,
+    output_type=SupportedSource,
+    tools=(read_document_tool,),
+    judgments=(select_document, supports_statement),
+    completion=CompletionContract(...),
+    policy=OperatingPolicy(...),
+)
+result = await runtime.run(definition, request, run_context)
+```
+
+`RunContext` contains `scope`, opaque `host_dependencies`, opaque `authority_context`, a monotonic `deadline`, `RunLimits`, an injectable clock, an optional sanitized event sink, and an optional existing evidence session.
+`RunLimits` contains finite nonnegative limits for provider attempts, submitted questions, tool attempts, investigation steps, concurrent operations, writes, planner calls, plan revisions, child depth, and total child runs.
+Zero disables that work class, negative or unlimited values are invalid, and cancellation is the caller task's normal asynchronous cancellation rather than a second token protocol.
+
+`CompletionContract` names required findings, result-field bindings, negative findings that count as complete, and an evidence-acceptance policy.
+`AcceptancePolicy` returns `accept`, `investigate`, `reject`, or `handoff` with versioned reasons and never grants execution permission.
+`Authorizer` independently returns an exact-action authorization bound to the tool, arguments, scope, source versions, authority context, and expiry.
+`ExecutionReceipt` and `WriteRecord` preserve `proposed`, `authorized`, `in_flight`, `succeeded`, `failed_before_effect`, or `outcome_unknown`; only reconciliation or a downstream guarantee permits retry after an ambiguous dispatch.
+
+`Planner` is an optional typed asynchronous callable owned by the host.
+It receives an objective, permitted evidence, registered capability descriptions, prior outcomes, and remaining limits.
+It returns exactly one of `PlanStep`, `PlanRevision`, `ClarificationRequest`, `ProposedResult`, or `PlannerHandoff`.
+Generated plans can reference only registered capability IDs and declared generated-value slots, and they pass normal compilation and authority checks before admission.
+
+Evidence records share `id`, `kind`, typed value or retained reference, source ID, scope, observation time, optional expiry, source version, and dependency IDs.
+Concrete kinds are `Observation`, `Derivation`, `JudgmentRecord`, `AcceptanceRecord`, `AuthorizationRecord`, `ExecutionRecord`, and `ChildFinding`.
+Contradictory records are linked rather than overwritten, and an evidence view either includes required conflicts or reports insufficient capacity.
+Events use schema version `jev-frame.event.v1`, monotonically increasing run-local sequence numbers, correlation IDs, public reason codes, and allowlisted data only.
+
+### Failure and ownership rules
+
+The public definition errors are `DefinitionError`, `BindingError`, and `UnsupportedTypeError`.
+Caller failures are `InputValidationError`, `ScopeError`, and `StaleInputError`.
+Provider failures are `ProviderError`, `ProviderTimeoutError`, and `ResponseValidationError`.
+Expected incomplete work uses `Unresolved` records with stable reason codes for missing evidence, conflict, incomplete coverage, refuted claim, semantic ambiguity, missing capability, unaccepted judgment, permission denial, stale source, unknown write outcome, budget exhaustion, and no progress.
+Public diagnostics sanitize arbitrary exception text and never serialize credentials or host dependency values.
+
+The plain caller, Jev-Frame runtime, or selected host framework owns the outer loop, never more than one at once.
+The component that dispatches a tool owns its retry policy and effect accounting.
+Jev-Frame controls only work admitted through its boundary, and combined usage remains incomplete when the host cannot expose all attempts.
+Semantic acceptance, evidence sufficiency, candidate selection, and execution authority are separate records even when one application policy consumes all four.
+
+### Scenario contract walkthrough
+
+| Scenario | Input and decision path | Successful result | Required failure behavior |
+|---|---|---|---|
+| A | A scoped catalog snapshot feeds a Choice judgment, then `SourceBinding` copies an exact field or span. | The selected document and exact source value retain candidate and source-version provenance. | Empty, misleading, missing, duplicate-label, or no-fit inputs remain distinguishable and never fabricate a source. |
+| B | A truncated or conflicting retrieval creates an unresolved reason and one bounded registered investigation step. | Only affected judgments recompute, while the final evidence chain retains expansion or corroboration provenance. | Unchanged evidence stops as `no_progress`; unresolved coverage or conflict stays visible. |
+| C | An accepted candidate tuple proposes a versioned fake-record mutation and the host authorizes its exact digest. | A validated receipt proves one effect, including reconciliation after a lost reply. | Stale versions, denied authority, or inconclusive reconciliation produce no blind retry. |
+| D | A parent invokes two registered child definitions under intersected scope and one shared ledger. | Compatible or conflicting typed child findings both retain their evidence chains for parent policy. | Wider authority, cycles, depth/count overflow, cancellation, and budget races stop with explicit causes. |
+| E | A registered generator returns a typed plan proposal for normal compiler validation. | A valid proposal uses only registered capabilities and declared bindings. | Invented tools, cycles, unauthorized mutation, and generated source identities are rejected without execution. |
+| F | A plain caller, LangGraph node/tool, or Pydantic AI tool invokes the same decision callable inside a host-owned loop. | Observable primitive metadata, provenance, cancellation, errors, and usage coverage return without a Jev-Frame outer loop. | Optional use may be skipped, required checkpoints fail closed, and changed artifacts invalidate earlier acceptance. |
+| G | A host planner proposes bounded steps from an objective and receives actual outcomes for replanning. | A compiled capability sequence ends in an accepted deliverable, clarification, or typed handoff. | Invented capabilities, repeated unchanged plans, invalid identities, and duplicate specialist effects are rejected. |
+| H | One versioned decision package binds to two synthetic catalogs, previews, runs, captures an allowlisted failure, and replays through doubles. | Reuse changes host functions without core changes, and replay reproduces only complete sanitized fixtures. | Preview dispatches nothing, evaluator labels stay isolated, and missing redacted evidence refuses faithful replay. |
+| I | A host registers finite framework and fake-MCP tool catalogs with scope, versions, bindings, and effects. | Bounded discovery selects, expands, or returns no-fit with coverage metadata. | Unsupported schemas, missing semantics, scope leaks, changed versions, and incomplete no-fit claims fail before dispatch. |
+| J | A generator proposes drafts, deterministic checks filter them, Jev assesses survivors, and one bounded revision consumes findings. | A new revision passes every required deterministic and semantic check with revision-specific evidence. | Exact-check failure overrides confidence, and unchanged or exhausted revisions terminate explicitly. |
+| K | Injected retrieval returns versioned passages for separate claim judgments and deterministic aggregation. | Findings link claims to exact Unicode-safe fields or spans and report retrieval and document coverage. | Opposing sources and truncation remain visible, and separate batch probabilities are never treated as one ranking. |
+| L | Evaluator-only validation cases compare policies, freeze one version, then run untouched held-out and shadow cases. | Reports expose counts, denominators, errors, handoffs, usage coverage, and immutable shadow observations. | Labels never enter runtime inputs, held-out failures do not retune the frozen policy, and shadow mode dispatches no business mutation. |
+
+### Evaluation fixtures and policy ownership
+
+Fixture IDs use `JF-<scenario>-<group>-<case>-v<version>` and every variant carries a stable source-group ID so repeated variants are not counted as independent samples.
+The initial synthetic manifest assigns policy-tuning variants to `validation`, mechanically similar variants from the same source group to the same split, and separately authored variants to `held_out`.
+Expected answers, harmful-error labels, and evaluator notes live only in evaluator records passed after a run.
+Policy versions use `policy:<package-id>:<major>.<minor>.<patch>` and record the validation manifest digest, judgment versions, model selection, and retrieval configuration.
+The application owner chooses acceptable thresholds and authorizes any promotion; Jev-Frame only measures and freezes the selected policy.
 
 ## Working with existing LLM frameworks
 
@@ -141,9 +310,9 @@ Document processing remains a generic capability package with injected retrieval
 Tool discovery works within host-supplied registrations and does not scan installed packages or connect to arbitrary remote servers.
 These features expand what an application can compose around Jev without changing the model's native input or output capabilities.
 
-## Proposed public concepts
+## Public concept responsibilities
 
-These concepts describe the intended API; they are not implemented classes.
+These concepts summarize the frozen initial API responsibilities; their implementations begin in JF-02.
 
 | Concept | Developer responsibility | Framework responsibility |
 |---|---|---|
@@ -284,12 +453,12 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `.codex/README.md` | Codex usage and continuation context |
 | `.gitignore` | Keep credentials and generated local files out of Git |
 
-The [implementation plan for Sol](IMPLEMENTATION_PLAN.md) defines the proposed public contracts, implementation sequence, behavioral checks, and delivery gates for this design.
-Its names and interfaces remain proposals, and the plan does not authorize implementation by itself.
-The first implementation phase finalizes the public API specification with representative usage scenarios before creating the runtime.
+The [implementation plan for Sol](IMPLEMENTATION_PLAN.md) defines the frozen public contracts, implementation sequence, behavioral checks, and delivery gates for this design.
+JF-01 froze the names and interfaces above after read-only compatibility checks; later changes require an explicit synchronized contract revision.
+The next implementation issue creates the package foundations and typed definitions without skipping ahead to the runtime.
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
-Implementation has not started.
-Package naming, licensing, final API signatures, persistence details, and acceptance thresholds remain open decisions.
+Runtime implementation has not started.
+The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.
 
 ## Further reading
 

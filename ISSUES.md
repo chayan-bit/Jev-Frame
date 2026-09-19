@@ -1,14 +1,14 @@
 # Jev-Frame implementation issue roadmap
 
-Status: planning only; 22 implementation issues and one coordination tracker are published on GitHub.
-The request creating this backlog does not start implementation.
+Status: implementation authorized on branch `codex/jev-frame-implementation`.
+JF-01 freezes the documentation contracts; source implementation begins with JF-02 after its commit and issue evidence are recorded.
 Use Sol at high reasoning effort explicitly when implementing an assigned issue.
-The repository remains design-only until that work is requested.
+Local implementation is now requested under the repository and issue boundaries below.
 
 Roadmap tracker: [#1](https://github.com/chayan-bit/Jev-Frame/issues/1).
 Product scope is defined in [README.md](README.md), behavioral contracts in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md), and operating constraints in [AGENTS.md](AGENTS.md).
 This document maps the same scope to independently reviewable work; it does not add a competing architecture.
-Public API names and dependency versions remain provisional until [JF-01 / #2](https://github.com/chayan-bit/Jev-Frame/issues/2) freezes them.
+Public API names and dependency versions are frozen by [JF-01 / #2](https://github.com/chayan-bit/Jev-Frame/issues/2) and summarized in README `Frozen initial contract`.
 
 ## How to execute an issue
 
