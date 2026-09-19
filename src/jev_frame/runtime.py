@@ -1777,7 +1777,14 @@ class Runtime:
             for field, reference in definition.completion.result_bindings.items()
         }
         proposed: Any
-        if is_dataclass(definition.output_type):
+        if not values:
+            reference = definition.completion.required_findings[0]
+            proposed = validate_value(
+                definition.output_type,
+                state.findings[reference],
+                f"{definition.id} completion",
+            )
+        elif is_dataclass(definition.output_type):
             hints = get_type_hints(definition.output_type, include_extras=True)
             validated = {
                 field.name: validate_value(
@@ -1793,14 +1800,7 @@ class Runtime:
         ):
             proposed = definition.output_type.model_validate(values, strict=True)
         else:
-            if values:
-                raise _ToolFailure("scalar completion cannot use named bindings")
-            reference = definition.completion.required_findings[0]
-            proposed = validate_value(
-                definition.output_type,
-                state.findings[reference],
-                f"{definition.id} completion",
-            )
+            raise _ToolFailure("scalar completion cannot use named bindings")
         check = self.completion_checks.get(definition.completion.acceptance_policy)
         if check is None:
             raise _RunUnresolved(

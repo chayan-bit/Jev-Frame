@@ -1292,3 +1292,13 @@ At every substantive stopping point, update a compact continuation entry in `.co
 - Outcomes: completed child values enter normal parent evidence, unresolved findings remain partial, conflicting specialists remain separate, child attempts cannot supersede parent evidence, and cancelled ambiguous effects import their `OUTCOME_UNKNOWN` execution references before cancellation propagates.
 - Verification: focused synthetic tests cover exact scope and evidence intersection, cycles, depth and count exhaustion, one-slot execution, concurrent attempt identities, contradictory findings, parent completion rejection, unresolved provenance, cancellation and an admitted synthetic child mutation with an unknown outcome.
 - Remaining gates: no live provider, consequential real effect, distributed worker, durable cross-run resume, publication, or deployment was exercised or authorized.
+
+### JF-16 hybrid planning checkpoint — 2026-09-19
+
+- Objective: run unfamiliar objectives through bounded typed plans, actual-outcome replanning, host acceptance, and a propose-filter-select recipe without giving generated text execution authority.
+- Decisions: one asynchronous callable owns planner generation, every step names a registered capability, generated values are distinct from evidence and completed-step references, the shared runtime owns dispatch, and the host owns final semantic acceptance.
+- Limits: planner calls and revisions use stable identities in the shared atomic ledger, unchanged plan fingerprints stop no-progress loops, and missing provider usage remains unknown rather than zero.
+- Outcomes: invalid plans return typed validation outcomes without dispatch, failed step outcomes return to the planner, clarification and handoff remain explicit, and a final proposal completes only after strict output validation and the host acceptance predicate.
+- Frameworks: real LangChain `RunnableLambda` and Pydantic AI `Agent` plus `FunctionModel` interfaces drive the planner offline while Jev-Frame retains dispatch and completion ownership.
+- Verification: six focused core tests and two optional-framework tests cover an unseen three-step objective, changed retrieval, invented tools and evidence, no-progress, rejected completion, one-time specialist effects, zero-survivor no-fit, and one admitted Jev selection.
+- Remaining gates: no live planner, live TypeSafe request, consequential real effect, application acceptance calibration, publication, or deployment was exercised or authorized.

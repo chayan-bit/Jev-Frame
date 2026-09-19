@@ -149,6 +149,27 @@ from .packages import (  # noqa: F401
     DocumentRecord,
     bind_document_evidence_package,
 )
+from .planning import (  # noqa: F401
+    CapabilityDescription,
+    EvidenceValue,
+    GeneratedText,
+    Planner,
+    PlannerCapability,
+    PlannerEngine,
+    PlannerHandoff,
+    PlannerRequest,
+    PlannerTurn,
+    PlanningError,
+    PlanningResult,
+    PlanRevision,
+    PlanStep,
+    ProposalSelection,
+    ProposedAlternative,
+    ProposedResult,
+    StepOutcome,
+    StepValue,
+    propose_select,
+)
 from .policy import (  # noqa: F401
     AcceptancePolicy,
     ActionProposal,

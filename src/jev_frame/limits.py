@@ -64,12 +64,16 @@ class LedgerSnapshot:
     writes: int
     child_runs: int
     max_child_depth: int
+    planner_calls: int
+    plan_revisions: int
     active_operations: int
     attempt_ids: tuple[str, ...]
     tool_attempt_ids: tuple[str, ...]
     investigation_ids: tuple[str, ...]
     write_ids: tuple[str, ...]
     child_run_ids: tuple[str, ...]
+    planner_call_ids: tuple[str, ...]
+    plan_revision_ids: tuple[str, ...]
     measurements: tuple[UsageMeasurement, ...]
 
 
@@ -86,6 +90,8 @@ class UsageLedger:
         self._investigations: set[str] = set()
         self._writes: set[str] = set()
         self._child_runs: dict[str, int] = {}
+        self._planner_calls: set[str] = set()
+        self._plan_revisions: set[str] = set()
         self._active: set[str] = set()
         self._operations: set[str] = set()
         self._measurements: dict[
@@ -239,6 +245,57 @@ class UsageLedger:
                 raise ChildRunLimitError("child run count limit exhausted")
             self._child_runs[run_id] = depth
 
+    async def admit_planner_call(
+        self,
+        call_id: str,
+        *,
+        deadline: float,
+        clock: Callable[[], float],
+    ) -> None:
+        await self._admit_named(
+            call_id,
+            self._planner_calls,
+            self.limits.planner_calls,
+            "planner call",
+            deadline,
+            clock,
+        )
+
+    async def admit_plan_revision(
+        self,
+        revision_id: str,
+        *,
+        deadline: float,
+        clock: Callable[[], float],
+    ) -> None:
+        await self._admit_named(
+            revision_id,
+            self._plan_revisions,
+            self.limits.plan_revisions,
+            "plan revision",
+            deadline,
+            clock,
+        )
+
+    async def _admit_named(
+        self,
+        identifier: str,
+        values: set[str],
+        limit: int,
+        name: str,
+        deadline: float,
+        clock: Callable[[], float],
+    ) -> None:
+        if type(identifier) is not str or not identifier:
+            raise ValueError(f"{name} id must be a non-empty string")
+        self._check_deadline(deadline, clock)
+        async with self._lock:
+            if identifier in values:
+                return
+            if len(values) >= limit:
+                raise BudgetExhaustedError(f"{name} limit exhausted")
+            values.add(identifier)
+
     async def record_estimate(
         self,
         operation_id: str,
@@ -307,11 +364,15 @@ class UsageLedger:
                 len(self._writes),
                 len(self._child_runs),
                 max(self._child_runs.values(), default=0),
+                len(self._planner_calls),
+                len(self._plan_revisions),
                 len(self._active),
                 tuple(self._attempt_questions),
                 tuple(self._tool_attempts),
                 tuple(self._investigations),
                 tuple(self._writes),
                 tuple(self._child_runs),
+                tuple(self._planner_calls),
+                tuple(self._plan_revisions),
                 tuple(self._measurements.values()),
             )

@@ -547,6 +547,15 @@ Generated arguments use explicit generated-value bindings, while identifiers and
 Generated content remains a proposal until the relevant application checks accept it.
 Do not automatically promote a generated plan into permanent policy.
 
+`PlannerEngine` gives Jev-Frame loop ownership while accepting any asynchronous planner callable that returns a typed `PlannerTurn`.
+Each call receives only the objective, registered capability descriptions, visible evidence, completed step outcomes, the previous plan, and the remaining revision allowance.
+Plans may use generated text, exact evidence references, or exact completed-step references, and validation rejects invented capability names, missing records, forbidden effects, duplicate step identities, and dependency cycles before dispatch.
+Validated capabilities execute through the shared runtime, compiler, evidence state, provider adapter, accounting ledger, authority checks, and cancellation chain.
+Actual outcomes return to the planner after each step, failed or changed observations require a changed revision, and repeated unchanged plans stop with an explicit no-progress result.
+Final proposed results remain subject to the host-supplied output type and semantic acceptance predicate, while clarification and typed handoff remain distinct terminal outcomes.
+`propose_select` filters host-generated alternatives before one Jev selection call and returns `NO_FIT` without provider dispatch when no valid candidates survive.
+The optional LangChain and Pydantic AI adapters turn their native runnable and agent interfaces into planner callables without transferring tool dispatch or completion authority.
+
 ## Scope boundaries
 
 The core should contain reusable agent machinery, not application-specific business rules, customer data, credentials, or private benchmark history.
@@ -594,6 +603,7 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `src/jev_frame/packages.py` | Typed package binding and the generic document-evidence capability package |
 | `src/jev_frame/policy.py` | Versioned semantic policies, exact action/checkpoint records, authorization, receipts, and durable intent contracts |
 | `src/jev_frame/runtime.py` | Shared scheduler, read and guarded mutation dispatch, completion checks, cancellation, and terminal results |
+| `src/jev_frame/planning.py` | Bounded typed planning, actual-outcome replanning, host acceptance, and propose-select recipes |
 | `src/jev_frame/__init__.py` | Small public export surface |
 | `examples/document_evidence.py` | Public-import synthetic binding of one package to two catalogs |
 | `examples/document_evidence_cases.py` | Evaluator-only synthetic case descriptors excluded from runtime imports |
@@ -606,6 +616,8 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `tests/test_investigation.py` | Offline JF-11 expansion, selective reevaluation, conflict, no-progress, scope, budget, and clarification checks |
 | `tests/test_capabilities.py` | Offline JF-14 schema import, scope, version, discovery, MCP-session, dispatch, error, and cancellation checks |
 | `tests/test_composition.py` | Offline JF-15 child scope, evidence, ancestry, limits, accounting, conflict, cancellation, and uncertain-effect checks |
+| `tests/test_planning.py` | Offline JF-16 plan validation, replanning, no-progress, specialist dispatch, and propose-select checks |
+| `tests/test_planning_frameworks.py` | Offline JF-16 real LangChain and Pydantic AI planner-interface checks |
 | `tests/test_packages.py` | Offline JF-08 package reuse, binding validation, evaluator isolation, and version-identity checks |
 | `tests/test_policy.py` | Offline JF-10 acceptance, authorization, revalidation, receipt, reconciliation, and cancellation checks |
 | `tests/test_runtime.py` | Offline JF-09 scheduling, isolation, completion, stale-input, failure, and cancellation checks |
@@ -625,6 +637,7 @@ JF-11 implements deterministic read-only investigation and host-linked typed cla
 JF-12 and JF-13 implement optional LangChain, LangGraph, and Pydantic AI boundaries with offline framework doubles while preserving host loop ownership.
 JF-14 implements finite scoped discovery and explicit read-only host-tool import without scanning packages, opening MCP sessions, or inferring authority from schemas.
 JF-15 implements typed specialist composition through the shared runtime without recursive autonomous hierarchies, distributed workers, or cross-run memory.
+JF-16 implements bounded objective-driven planning and propose-select through the shared runtime without granting generated text execution authority or claiming live-provider compatibility.
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
 Remaining extended capabilities stay assigned to later issues.
 The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.

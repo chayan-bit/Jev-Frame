@@ -14,6 +14,7 @@ from ..definitions import (
     UsageCoverage,
 )
 from ..inspection import serialize_decision_result
+from ..planning import PlannerRequest, PlannerTurn
 from ..policy import ActionProposal, CheckpointRecord, RequiredCheckpoint
 
 
@@ -179,3 +180,26 @@ def inspect_native_typesafe_usage(response: Any) -> NativeTypeSafeUsage:
         request_count,
         response.model_name if type(response.model_name) is str else None,
     )
+
+
+def planner_callable(
+    agent: Any,
+    prompt_factory: Callable[[PlannerRequest], str],
+    decode: Callable[[Any, PlannerRequest], PlannerTurn],
+) -> Callable[[PlannerRequest], Any]:
+    """Adapt a configured Pydantic AI agent as a proposal-only planner."""
+
+    run = getattr(agent, "run", None)
+    if not callable(run) or not callable(prompt_factory) or not callable(decode):
+        raise PydanticAIIntegrationError(
+            "planner adapter requires an agent, prompt factory and decoder"
+        )
+
+    async def plan(request: PlannerRequest) -> PlannerTurn:
+        result = await run(prompt_factory(request))
+        turn = decode(result.output, request)
+        if not isinstance(turn, PlannerTurn):
+            raise PydanticAIIntegrationError("planner decoder must return PlannerTurn")
+        return turn
+
+    return plan

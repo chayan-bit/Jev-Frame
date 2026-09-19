@@ -429,7 +429,7 @@ class _Compiler:
                     "scalar outputs cannot use named result bindings",
                     node_id=f"complete:{self.definition.id}",
                 )
-        elif binding_fields != output_fields:
+        elif binding_fields and binding_fields != output_fields:
             self.fail(
                 "result_binding_mismatch",
                 f"completion result bindings mismatch; missing={sorted(output_fields - binding_fields)}, extra={sorted(binding_fields - output_fields)}",

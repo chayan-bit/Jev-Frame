@@ -9,6 +9,7 @@ from ..capabilities import CapabilityImportError, ForeignToolDescriptor
 from ..decisions import DecisionClient, DecisionInputs
 from ..definitions import DecisionContext, DecisionResult, JevFrameError, Judgment
 from ..inspection import serialize_decision_result
+from ..planning import PlannerRequest, PlannerTurn
 from ..policy import ActionProposal, CheckpointRecord, RequiredCheckpoint
 
 StateT = TypeVar("StateT", bound=Mapping[str, Any])
@@ -114,6 +115,24 @@ def existing_tool_descriptor(
         scopes,
         source_id,
     )
+
+
+def planner_callable(
+    tool_value: Any,
+) -> Callable[[PlannerRequest], Awaitable[PlannerTurn]]:
+    """Adapt a configured LangChain runnable as a proposal-only planner."""
+
+    ainvoke = getattr(tool_value, "ainvoke", None)
+    if not callable(ainvoke):
+        raise LangChainIntegrationError("planner runnable must expose ainvoke")
+
+    async def plan(request: PlannerRequest) -> PlannerTurn:
+        result = await ainvoke(request)
+        if not isinstance(result, PlannerTurn):
+            raise LangChainIntegrationError("planner runnable must return PlannerTurn")
+        return result
+
+    return plan
 
 
 def required_checkpoint_node(
