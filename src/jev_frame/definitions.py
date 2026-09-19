@@ -6,6 +6,7 @@ import re
 import time
 import types
 from collections.abc import Callable, Mapping
+from copy import deepcopy
 from dataclasses import dataclass, field, fields, is_dataclass
 from enum import Enum
 from types import MappingProxyType, NoneType
@@ -153,10 +154,52 @@ def ensure_supported_type(annotation: Any, name: str = "annotation") -> None:
         raise UnsupportedTypeError(f"unsupported {name}: {annotation!r}")
 
 
+def _literal_types_match(annotation: Any, value: Any) -> bool:
+    origin = get_origin(annotation)
+    arguments = get_args(annotation)
+    if origin is Literal:
+        return any(type(value) is type(option) and value == option for option in arguments)
+    if origin is list and isinstance(value, list):
+        return all(_literal_types_match(arguments[0], item) for item in value)
+    if origin in {dict, Mapping} and isinstance(value, Mapping):
+        return all(_literal_types_match(arguments[1], item) for item in value.values())
+    if origin in {Union, types.UnionType}:
+        if value is None:
+            return True
+        child = next(
+            item for item in arguments if item not in {None, NoneType}
+        )
+        return _literal_types_match(child, value)
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        if isinstance(value, annotation):
+            return all(
+                field.annotation is None
+                or _literal_types_match(field.annotation, getattr(value, name))
+                for name, field in annotation.model_fields.items()
+            )
+        if isinstance(value, Mapping):
+            return all(
+                name not in value
+                or field.annotation is None
+                or _literal_types_match(field.annotation, value[name])
+                for name, field in annotation.model_fields.items()
+            )
+    if isinstance(annotation, type) and is_dataclass(annotation):
+        hints = get_type_hints(annotation, include_extras=True)
+        if isinstance(value, annotation):
+            return all(
+                _literal_types_match(hints[item.name], getattr(value, item.name))
+                for item in fields(annotation)
+            )
+    return True
+
+
 def validate_value(annotation: Any, value: Any, name: str = "value") -> Any:
     """Validate a caller value without scalar coercion."""
 
     ensure_supported_type(annotation, name)
+    if not _literal_types_match(annotation, value):
+        raise InputValidationError(f"invalid {name}")
     try:
         return TypeAdapter(annotation).validate_python(value, strict=True)
     except ValidationError as error:
@@ -605,6 +648,58 @@ class Coverage(str, Enum):
 NO_FIT_KEY = "__jev_frame_no_fit__"
 
 
+class _FrozenList(list[Any]):
+    def _immutable(self, *_: Any, **__: Any) -> None:
+        raise TypeError("candidate snapshot values are immutable")
+
+    __delitem__ = __iadd__ = __imul__ = __setitem__ = _immutable  # type: ignore[assignment]
+    append = clear = extend = insert = pop = remove = reverse = sort = _immutable  # type: ignore[assignment]
+
+
+class _FrozenDict(dict[str, Any]):
+    def _immutable(self, *_: Any, **__: Any) -> None:
+        raise TypeError("candidate snapshot values are immutable")
+
+    __delitem__ = __ior__ = __setitem__ = _immutable  # type: ignore[assignment]
+    clear = pop = popitem = setdefault = update = _immutable  # type: ignore[assignment]
+
+
+def _freeze_candidate_value(value: Any) -> Any:
+    if value is None or type(value) in {str, bool, int, float} or isinstance(value, Enum):
+        return value
+    if isinstance(value, Mapping):
+        if any(type(key) is not str for key in value):
+            raise DefinitionError("candidate mappings require string keys")
+        return _FrozenDict(
+            {key: _freeze_candidate_value(item) for key, item in value.items()}
+        )
+    if isinstance(value, (list, tuple)):
+        return _FrozenList(_freeze_candidate_value(item) for item in value)
+    if isinstance(value, BaseModel):
+        if not value.model_config.get("frozen", False):
+            raise DefinitionError("candidate models must be frozen")
+        return value.model_copy(
+            deep=True,
+            update={
+                name: _freeze_candidate_value(getattr(value, name))
+                for name in value.__class__.model_fields
+            },
+        )
+    if is_dataclass(value) and not isinstance(value, type):
+        parameters = cast(Any, value).__dataclass_params__
+        if not parameters.frozen:
+            raise DefinitionError("candidate dataclasses must be frozen")
+        frozen = deepcopy(value)
+        for item in fields(value):
+            object.__setattr__(
+                frozen, item.name, _freeze_candidate_value(getattr(value, item.name))
+            )
+        return frozen
+    raise DefinitionError(
+        f"unsupported candidate value type: {type(value).__name__}"
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class Candidate:
     key: str
@@ -617,6 +712,7 @@ class Candidate:
         _text(self.key, "candidate key")
         _text(self.description, "candidate description")
         _text(self.source_id, "candidate source")
+        object.__setattr__(self, "value", _freeze_candidate_value(self.value))
 
 
 @dataclass(frozen=True, slots=True)
@@ -635,6 +731,10 @@ class CandidateSet:
     def __post_init__(self) -> None:
         _text(self.id, "candidate set id")
         _version(self.version)
+        candidates = tuple(self.candidates)
+        if any(not isinstance(candidate, Candidate) for candidate in candidates):
+            raise DefinitionError("candidate snapshots require Candidate values")
+        object.__setattr__(self, "candidates", candidates)
         if not isinstance(self.coverage, Coverage):
             raise DefinitionError("candidate coverage must use Coverage")
         _text(self.scope, "candidate scope")
@@ -662,7 +762,7 @@ class CandidateSet:
         object.__setattr__(
             self,
             "retrieval_parameters",
-            MappingProxyType(dict(self.retrieval_parameters)),
+            _freeze_candidate_value(self.retrieval_parameters),
         )
 
 

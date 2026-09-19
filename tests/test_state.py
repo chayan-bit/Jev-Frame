@@ -141,6 +141,37 @@ class CandidateStateTests(unittest.TestCase):
         with self.assertRaises(StableSerializationError):
             canonical_digest({1, 2})
 
+    def test_candidate_snapshot_detaches_and_freezes_caller_values(self) -> None:
+        value = {"items": ["first"]}
+        metadata = {"filters": {"tags": ["public"]}}
+        supplied = [Candidate("a", value, "First", "catalog", "v1")]
+        snapshot = CandidateSet(
+            "documents",
+            "1.0.0",
+            supplied,  # type: ignore[arg-type]
+            Coverage.COMPLETE,
+            "alpha",
+            retrieval_parameters=metadata,
+        )
+        digest = candidate_snapshot_digest(snapshot)
+
+        supplied.append(Candidate("b", {"items": []}, "Second", "catalog", "v1"))
+        value["items"].append("changed")
+        metadata["filters"]["tags"].append("private")
+
+        self.assertIsInstance(snapshot.candidates, tuple)
+        self.assertEqual(tuple(candidate.key for candidate in snapshot.candidates), ("a",))
+        self.assertEqual(candidate_snapshot_digest(snapshot), digest)
+        selected = select_candidate(snapshot, "a")
+        assert selected.candidate is not None
+        self.assertEqual(selected.candidate.value, {"items": ["first"]})
+        with self.assertRaises(TypeError):
+            selected.candidate.value["items"].append("mutate snapshot")
+        with self.assertRaises(TypeError):
+            snapshot.retrieval_parameters["filters"]["tags"].append("mutate")
+        with self.assertRaises(CandidateSelectionError):
+            select_candidate(snapshot, "b")
+
 
 class EvidenceStateTests(unittest.TestCase):
     def test_invalidation_is_transitive_and_selective(self) -> None:

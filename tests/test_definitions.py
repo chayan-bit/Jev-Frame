@@ -3,7 +3,7 @@ import subprocess
 import sys
 import unittest
 from dataclasses import dataclass
-from typing import cast
+from typing import Literal, cast
 
 from pydantic import BaseModel
 
@@ -161,6 +161,32 @@ class DefinitionTests(unittest.TestCase):
 
         self.assertEqual(validate_value(int, 12, "count"), 12)
         self.assertEqual(validate_value(str, "12", "identifier"), "12")
+
+    def test_literal_validation_preserves_exact_scalar_types(self) -> None:
+        with self.assertRaises(InputValidationError):
+            validate_value(Literal[1, 2], True, "choice")
+        with self.assertRaises(InputValidationError):
+            validate_value(Literal[True], 1, "choice")
+        with self.assertRaises(InputValidationError):
+            validate_value(Literal[1.0], 1, "choice")
+        with self.assertRaises(InputValidationError):
+            validate_value(list[Literal[1, 2]], [1, True], "choices")
+
+        self.assertEqual(validate_value(Literal[1, 2], 1, "choice"), 1)
+        self.assertEqual(validate_value(Literal[1, 2], 2, "choice"), 2)
+        self.assertEqual(validate_value(Literal[1.0], 1.0, "choice"), 1.0)
+
+        def use(choice: Literal[1, 2]) -> str:
+            return str(choice)
+
+        with self.assertRaises(InputValidationError):
+            Tool(
+                "literal",
+                "1.0.0",
+                "Reject an equal value of the wrong scalar type.",
+                use,
+                {"choice": ConstantBinding(True)},
+            )
 
     def test_unsupported_signatures_and_types_fail(self) -> None:
         def variadic(*values: int) -> int:
