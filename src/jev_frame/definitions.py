@@ -460,13 +460,15 @@ class ChoiceOption:
 @dataclass(frozen=True, slots=True)
 class ChoiceQuestion:
     instructions: str
-    criteria: tuple[ChoiceOption, ...]
+    criteria: tuple[ChoiceOption, ...] = ()
 
     def __post_init__(self) -> None:
         _text(self.instructions, "choice instructions")
         keys = [option.key for option in self.criteria]
-        if len(keys) < 2 or len(keys) != len(set(keys)):
-            raise DefinitionError("choice criteria require at least two unique keys")
+        if len(keys) == 1 or len(keys) != len(set(keys)):
+            raise DefinitionError(
+                "choice criteria must be empty for a candidate set or contain at least two unique keys"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -527,6 +529,7 @@ class Judgment:
     dependencies: tuple[str, ...] = ()
     acceptance_policy: str | None = None
     applicability: str | None = None
+    candidate_set: str | None = None
 
     def __post_init__(self) -> None:
         _text(self.id, "judgment id")
@@ -547,6 +550,18 @@ class Judgment:
             raise DefinitionError("judgment dependencies must be unique")
         if self.applicability is not None:
             _text(self.applicability, "judgment applicability")
+        if self.candidate_set is not None:
+            _text(self.candidate_set, "judgment candidate set")
+            if not isinstance(self.primitive, ChoiceQuestion):
+                raise DefinitionError("only Choice judgments may use a candidate set")
+            if self.primitive.criteria:
+                raise DefinitionError(
+                    "a Choice judgment cannot mix fixed criteria with a candidate set"
+                )
+        elif isinstance(self.primitive, ChoiceQuestion) and not self.primitive.criteria:
+            raise DefinitionError(
+                "a Choice judgment needs fixed criteria or a candidate set"
+            )
 
 
 class Coverage(str, Enum):
@@ -744,9 +759,7 @@ class AgentDefinition(Generic[InputT, OutputT]):
                 "completion references an unregistered acceptance policy"
             )
         judgment_ids = {judgment.id for judgment in all_judgments}
-        capability_ids = {tool.id for tool in all_tools} | {
-            package.id for package in self.packages
-        }
+        capability_ids = {tool.id for tool in all_tools}
         for judgment in all_judgments:
             missing_dependencies = set(judgment.dependencies) - judgment_ids
             if missing_dependencies:

@@ -27,7 +27,8 @@ The ten additions in Section 5.9 are included in the initial target and tracked 
 
 - JF-02 adds the local `jev_frame` package manifest, strict public definitions, explicit bindings, contexts, usage and result variants, a lockfile, and focused offline checks.
 - JF-03 adds immutable candidate snapshots, run-local provenance records, scoped evidence views, canonical fingerprints, and selective transitive invalidation.
-- There is no compiler, provider adapter, decision client, scheduler, executable example, CI configuration, or selected license yet.
+- JF-04 adds pure backward compilation, explicit judgment stages, bounded question construction, registered capability-revision validation, and serializable offline preview.
+- There is no provider adapter, decision client, scheduler, executable example, CI configuration, or selected license yet.
 - Generated environments and local build artifacts remain ignored.
 - JF-01 freezes the initial public names and signatures, the local `jev_frame` import name, run-local persistence, and host-owned acceptance thresholds.
 - `.codex/config.toml` currently contains a comment and does not enforce a model selection; the continuation note now reflects this.
@@ -797,6 +798,11 @@ Focused tests cover T03-T09, including duplicate labels, reserved-key collisions
 **Acceptance:** request-shape tests prove that renamed question IDs do not remove semantic information, dependent questions occupy different stages, and invalid tuples cannot be constructed by the binder.
 The compiler constructs Scenario A from public contracts without requiring an application-written scheduler, and an unresolvable evidence requirement yields a precise diagnostic.
 No network is required for compiler tests.
+
+**JF-04 result:** implemented in `src/jev_frame/compiler.py` with public `compile_agent` and `preview_agent` entry points.
+The compiler walks backward from completion references, resolves unique registered producers, validates tool bindings and result fields, separates dependent judgment stages from applicability, and emits stable inspectable nodes and diagnostics without invoking callbacks.
+The candidate contract now uses explicit `Judgment.candidate_set` for dynamic Choice questions; dynamic choices cannot mix fixed criteria, add the reserved no-fit option, and count it toward the 255-option bound.
+Focused checks cover T10-T13 and the preview portion of T58, including opaque routing IDs, cycles, correlated tuple rejection, primitive limits, partially bound previews, bounded registered revisions, callback non-dispatch, deterministic no-fit, and failed retrieval.
 
 ### Phase 4 — SDK adapter and offline provider checks
 

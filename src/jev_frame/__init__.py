@@ -1,5 +1,21 @@
 """Public Jev-Frame contracts."""
 
+from .compiler import (  # noqa: F401
+    MAX_CHOICE_OPTIONS,
+    MAX_SCORE_LEVELS,
+    CandidatePreview,
+    CompilationDiagnostic,
+    CompiledBinding,
+    CompiledNode,
+    CompiledOption,
+    CompiledProgram,
+    CompiledQuestion,
+    CompilerError,
+    EvaluationStage,
+    NodeKind,
+    compile_agent,
+    preview_agent,
+)
 from .definitions import (  # noqa: F401
     MISSING,
     NO_FIT_KEY,

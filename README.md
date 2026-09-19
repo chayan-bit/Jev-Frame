@@ -2,9 +2,9 @@
 
 A proposed Python framework for building Jev agents and integrating Jev decisions into existing LLM agents.
 
-**Status: JF-03 evidence and candidate state implemented; the compiler is next.**
-The local package exposes strict definitions, bindings, contexts, usage and result contracts, plus run-local evidence provenance, candidate snapshots, scoped projection, and selective invalidation.
-It does not yet implement compilation, provider calls, decision operations, scheduling, or executable examples.
+**Status: JF-04 pure compiler and offline preview implemented; the provider adapter is next.**
+The local package exposes strict definitions, run-local evidence and candidate state, and a deterministic definition-to-program compiler with serializable offline previews.
+It does not yet implement provider calls, decision operations, scheduling, or executable examples.
 This is an independent project, not an official TypeSafe product.
 
 ## Local development
@@ -79,8 +79,8 @@ Advanced applications should be able to control candidate providers, decision de
 ## Frozen initial contract
 
 This section fixes the JF-01 contract surface.
-JF-02 implements its definition, binding, context, usage, and result types, and JF-03 implements the shared evidence and candidate state.
-Later issues implement the decision and runtime entry points shown below.
+JF-02 implements its definition, binding, context, usage, and result types, JF-03 implements the shared evidence and candidate state, and JF-04 implements pure compilation and preview.
+Later issues implement provider-backed decision and runtime entry points shown below.
 
 ### Compatibility baseline
 
@@ -151,8 +151,9 @@ judgment = Judgment(
 decision = await decision_client.evaluate(judgment, inputs, decision_context)
 ```
 
-`Judgment` contains a stable ID and version, one primitive definition, explicit subject selectors, evidence selectors, candidate or rubric definitions, dependency IDs, applicability, and an optional acceptance-policy ID.
+`Judgment` contains a stable ID and version, one primitive definition, explicit subject selectors, evidence selectors, an optional explicit `candidate_set`, dependency IDs, applicability, and an optional acceptance-policy ID.
 Its primitive is exactly one of `ChoiceQuestion`, `NoulQuestion`, or `ScoreQuestion`.
+Choice criteria are either at least two fixed options or empty with an explicit `candidate_set`; fixed and dynamic options cannot be mixed.
 `ChoiceAnswer` retains the selected key, full distribution, and confidence.
 `NoulAnswer` retains only the probability of yes and never fabricates confidence.
 `ScoreAnswer` retains the fractional expected score, ordered legend, distribution, and confidence.
@@ -327,7 +328,7 @@ These features expand what an application can compose around Jev without changin
 
 ## Public concept responsibilities
 
-These concepts summarize the frozen initial API responsibilities; their implementations begin in JF-02 and JF-03.
+These concepts summarize the frozen initial API responsibilities; their foundations are implemented through JF-04.
 
 | Concept | Developer responsibility | Framework responsibility |
 |---|---|---|
@@ -380,6 +381,12 @@ Use valid tuples or sequential binding when one argument determines another's ca
 
 Compiler checks can validate structure and references.
 They cannot prove that a natural-language policy is correct or unambiguous.
+`compile_agent` builds retrieval, derivation, judgment, invocation, and completion nodes backward from the completion contract without calling registered functions.
+It places dependent judgments in later evaluation stages, keeps applicability separate, validates exact registered capability revisions, and rejects cycles, ambiguous producers, unsafe tuple bindings, result-contract mismatches, and provider-limit violations.
+`preview_agent` returns the same compiled program as stable JSON-compatible data with questions, model-visible candidate metadata, argument sources, unresolved inputs, and precise diagnostics.
+Typed candidate values, host dependency values, and callable objects are not serialized into the preview.
+Dynamic Choice questions add the reserved no-fit option and count it toward the 255-option limit; Score rubrics are limited to 2–10 levels.
+Empty complete snapshots resolve to deterministic no-fit without a provider question, while failed retrieval remains a distinct blocked input.
 
 ### Candidate providers
 
@@ -480,16 +487,19 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `uv.lock` | Reproducible project dependency resolution |
 | `src/jev_frame/definitions.py` | Strict public definitions, bindings, contexts, usage, and results |
 | `src/jev_frame/state.py` | Immutable candidate snapshots, provenance records, scoped views, fingerprints, and invalidation |
+| `src/jev_frame/compiler.py` | Pure dependency compilation, bounded question construction, and serializable offline preview |
 | `src/jev_frame/__init__.py` | Small public export surface |
 | `tests/test_definitions.py` | Offline JF-02 behavior and failure checks |
 | `tests/test_state.py` | Offline JF-03 candidate and evidence-state checks |
+| `tests/test_compiler.py` | Offline JF-04 compiler, preview, dependency, and limit checks |
 
 The [implementation plan for Sol](IMPLEMENTATION_PLAN.md) defines the frozen public contracts, implementation sequence, behavioral checks, and delivery gates for this design.
 JF-01 froze the names and interfaces above after read-only compatibility checks; later changes require an explicit synchronized contract revision.
 JF-02 implements the package foundations and typed definitions without skipping ahead to provider or runtime behavior.
 JF-03 implements run-local evidence provenance, immutable candidate snapshots, exact source bindings, stable fingerprints, scoped views, and selective invalidation.
+JF-04 implements pure backward compilation and offline preview without retrieval, tool, or provider dispatch.
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
-Compiler, provider, decisions, and runtime implementation have not started.
+Provider, decisions, and runtime implementation have not started.
 The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.
 
 ## Further reading
