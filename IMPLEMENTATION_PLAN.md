@@ -30,6 +30,7 @@ The ten additions in Section 5.9 are included in the initial target and tracked 
 - JF-04 adds pure backward compilation, explicit judgment stages, bounded question construction, registered capability-revision validation, and serializable offline preview.
 - JF-05 adds the official asynchronous SDK adapter, framework-owned bounded retries, strict primitive response validation, request and attempt metadata, and explicit unknown usage.
 - JF-06 adds standalone decision operations, injected evidence sessions, exact source extraction, portable callables, and the shared atomic admission and usage ledger.
+- JF-07 adds schema-versioned sanitized events, allowlisted result serialization, permitted exact inspection, omitted-field manifests, and actionable public diagnostics.
 - There is no agent scheduler, executable example, CI configuration, or selected license yet.
 - Generated environments and local build artifacts remain ignored.
 - JF-01 freezes the initial public names and signatures, the local `jev_frame` import name, run-local persistence, and host-owned acceptance thresholds.
@@ -855,6 +856,14 @@ Selection preserves opaque candidate identity, duplicate labels, singleton suita
 The initial filter path keeps separately scoped items in separately accounted requests and uses an explicit host classifier instead of inventing a universal Noul threshold.
 `UsageLedger` atomically admits operations, attempts and questions, deduplicates identities, enforces monotonic deadlines and concurrency, and keeps observed, estimated, reserved, released and unknown token measurements distinct.
 Focused checks cover T17, T21, T44 and T56 with a credential-free scripted provider, including all five convenience operations, exact provenance, portable invocation, zero/singleton/duplicate/no-fit selection, per-item filtering, subject-sensitive fingerprints, one-winner concurrent admission, and non-multiplied batch token usage.
+
+**JF-07 result:** implemented in `src/jev_frame/inspection.py` and wired into the existing direct decision path.
+`jev-frame.event.v1` records run-local sequence, run, correlation, parent-operation, operation and attempt identities through an optional application callback with no default external destination.
+Event payload keys are allowlisted per kind, provider and sink exception text is never copied, attempt IDs and usage coverage survive round-trip serialization, and cancellation is recorded before it propagates.
+Default decision serialization and inspection expose actual primitive answers, provenance links, candidate keys, accepted bindings, public policy reasons, unresolved reason codes and an omitted-field manifest without evidence values or host context.
+Exact evidence, questions, candidate contents and unresolved detail require an explicit permitted projection and remain constrained to the recorded evidence store and matching candidate digest.
+Public diagnostics distinguish definition, service and semantic failures and identify the responsible definition, node, source path, corrective action and optional capability without fabricating model rationale.
+Focused checks cover T39 and the completed-decision portion of T58 with synthetic data, including hostile exception, dependency and authorization secrets, sink failure, exact projection, provenance resolution, accepted policy evidence, event correlation and cancellation.
 
 ### Phase 5 — Read-only vertical slice
 

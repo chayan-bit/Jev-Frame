@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
@@ -29,9 +30,17 @@ from .definitions import (
     UnresolvedReason,
     Usage,
 )
+from .inspection import (
+    EventKind,
+    EventLog,
+    JevEvent,
+    diagnostic_for_error,
+    serialize_decision_result,
+)
 from .limits import AdmissionError, DeadlineExceededError, UsageLedger
 from .provider import (
     AttemptAdmission,
+    ProviderAttempt,
     ProviderBatch,
     ProviderResponseError,
 )
@@ -150,12 +159,14 @@ class DecisionClient:
         *,
         model: str,
         ledger: UsageLedger | None = None,
+        event_log: EventLog | None = None,
     ) -> None:
         if type(model) is not str or not model.strip():
             raise ValueError("model must be a non-empty string")
         self.provider = provider
         self.model = model
         self._ledger = ledger
+        self._event_log = EventLog() if event_log is None else event_log
 
     def _ledger_for(self, context: DecisionContext) -> UsageLedger:
         if self._ledger is None:
@@ -169,6 +180,10 @@ class DecisionClient:
     @property
     def ledger(self) -> UsageLedger | None:
         return self._ledger
+
+    @property
+    def events(self) -> tuple[JevEvent, ...]:
+        return self._event_log.events
 
     def _validate_inputs(
         self,
@@ -218,37 +233,80 @@ class DecisionClient:
         inputs: DecisionInputs,
         context: DecisionContext,
     ) -> DecisionResult:
-        subject_names = tuple(subject.name for subject in judgment.subjects)
-        candidate_set, store, records = self._validate_inputs(judgment, inputs, context)
-        question = compile_judgment(judgment, candidate_set=candidate_set)
-        fingerprint = decision_fingerprint(
-            semantic_version=judgment.version,
-            policy_version=judgment.acceptance_policy or "unassessed",
-            model_identity=self.model,
-            projection_version="1.0.0",
-            compiler_version="1.0.0",
-            scope=context.scope,
-            evidence=records,
-            candidate_sets=(() if candidate_set is None else (candidate_set,)),
-            subjects=inputs.subjects,
-        )
-        state = {
-            "subjects": dict(inputs.subjects),
-            "evidence": {
-                name: record.value for name, record in inputs.evidence.items()
-            },
-        }
-        ledger = self._ledger_for(context)
+        run_id = context.run_id or inputs.id
+        correlation_id = context.correlation_id or run_id
+        node_id: str | None = None
 
-        async def admit(attempt: Any) -> None:
-            await ledger.admit_provider_attempt(
-                attempt,
-                1,
-                deadline=context.deadline,
-                clock=context.clock,
+        def emit(
+            kind: EventKind,
+            *,
+            data: Mapping[str, Any],
+            attempt_id: str | None = None,
+            reason_code: str | None = None,
+        ) -> None:
+            self._event_log.emit(
+                kind,
+                run_id=run_id,
+                correlation_id=correlation_id,
+                operation_id=inputs.id,
+                parent_operation_id=context.parent_operation_id,
+                attempt_id=attempt_id,
+                reason_code=reason_code,
+                data=data,
+                sink=context.event_sink,
             )
 
+        emit(
+            EventKind.OPERATION_STARTED,
+            data={
+                "definition_id": judgment.id,
+                "definition_version": judgment.version,
+            },
+        )
         try:
+            subject_names = tuple(subject.name for subject in judgment.subjects)
+            candidate_set, store, records = self._validate_inputs(
+                judgment, inputs, context
+            )
+            question = compile_judgment(judgment, candidate_set=candidate_set)
+            node_id = question.routing_id
+            fingerprint = decision_fingerprint(
+                semantic_version=judgment.version,
+                policy_version=judgment.acceptance_policy or "unassessed",
+                model_identity=self.model,
+                projection_version="1.0.0",
+                compiler_version="1.0.0",
+                scope=context.scope,
+                evidence=records,
+                candidate_sets=(() if candidate_set is None else (candidate_set,)),
+                subjects=inputs.subjects,
+            )
+            state = {
+                "subjects": dict(inputs.subjects),
+                "evidence": {
+                    name: record.value for name, record in inputs.evidence.items()
+                },
+            }
+            ledger = self._ledger_for(context)
+
+            async def admit(attempt: ProviderAttempt) -> None:
+                await ledger.admit_provider_attempt(
+                    attempt,
+                    1,
+                    deadline=context.deadline,
+                    clock=context.clock,
+                )
+                emit(
+                    EventKind.ATTEMPT_ADMITTED,
+                    attempt_id=attempt.id,
+                    data={
+                        "definition_id": judgment.id,
+                        "question_id": question.routing_id,
+                        "attempt_number": attempt.number,
+                        "attempt_status": attempt.status.value,
+                    },
+                )
+
             async with ledger.operation(
                 inputs.id, deadline=context.deadline, clock=context.clock
             ):
@@ -263,51 +321,113 @@ class DecisionClient:
                     timeout=timeout,
                     admit_attempt=admit,
                 )
+            await ledger.record_usage(inputs.id, batch.usage)
+            answer = batch.answers[question.routing_id]
+            judgment_record = ModelJudgment(
+                id=f"{inputs.id}:judgment",
+                value=answer,
+                source_id=f"typesafe:{batch.request_id or batch.attempts[-1].id}",
+                scope=context.scope,
+                observed_at=context.clock(),
+                dependencies=tuple(record.id for record in records),
+                judgment_id=judgment.id,
+                judgment_version=judgment.version,
+                question_semantics=question.instructions,
+                subjects=subject_names,
+                answer=answer,
+                input_fingerprint=fingerprint,
+                requested_model=batch.requested_model,
+                returned_model=batch.returned_model,
+                candidate_snapshot_digest=(
+                    None
+                    if candidate_set is None
+                    else candidate_snapshot_digest(candidate_set)
+                ),
+                presented_candidate_keys=tuple(
+                    option.key for option in question.options
+                ),
+            )
+            store.add(judgment_record)
+            if not store.is_current(judgment_record.id):
+                raise StaleInputError(
+                    "decision inputs changed while the provider request was in flight"
+                )
+            result = DecisionResult(
+                answer,
+                subject_names,
+                tuple(record.id for record in records) + (judgment_record.id,),
+                fingerprint,
+                batch.requested_model,
+                batch.returned_model,
+                batch.usage,
+            )
+            emit(
+                EventKind.OPERATION_COMPLETED,
+                data={
+                    "definition_id": judgment.id,
+                    "question_id": question.routing_id,
+                    "result_fingerprint": fingerprint,
+                    "evidence_refs": list(result.evidence_refs),
+                    "usage": serialize_decision_result(result)["usage"],
+                },
+            )
+            return result
+        except asyncio.CancelledError as error:
+            diagnostic = diagnostic_for_error(
+                error,
+                definition_id=judgment.id,
+                node_id=node_id,
+                source_path=("judgments", judgment.id),
+            )
+            emit(
+                EventKind.OPERATION_CANCELLED,
+                reason_code=diagnostic.code,
+                data={
+                    "definition_id": judgment.id,
+                    "question_id": node_id,
+                    "diagnostic": diagnostic.to_dict(),
+                },
+            )
+            raise
         except ProviderError as error:
             attempts = len(getattr(error, "attempts", ()))
-            await ledger.record_usage(
+            await self._ledger_for(context).record_usage(
                 inputs.id,
                 Usage(provider_attempts=attempts, submitted_questions=attempts),
             )
-            raise
-
-        await ledger.record_usage(inputs.id, batch.usage)
-        answer = batch.answers[question.routing_id]
-        judgment_record = ModelJudgment(
-            id=f"{inputs.id}:judgment",
-            value=answer,
-            source_id=f"typesafe:{batch.request_id or batch.attempts[-1].id}",
-            scope=context.scope,
-            observed_at=context.clock(),
-            dependencies=tuple(record.id for record in records),
-            judgment_id=judgment.id,
-            judgment_version=judgment.version,
-            question_semantics=question.instructions,
-            subjects=subject_names,
-            answer=answer,
-            input_fingerprint=fingerprint,
-            requested_model=batch.requested_model,
-            returned_model=batch.returned_model,
-            candidate_snapshot_digest=(
-                None
-                if candidate_set is None
-                else candidate_snapshot_digest(candidate_set)
-            ),
-        )
-        store.add(judgment_record)
-        if not store.is_current(judgment_record.id):
-            raise StaleInputError(
-                "decision inputs changed while the provider request was in flight"
+            diagnostic = diagnostic_for_error(
+                error,
+                definition_id=judgment.id,
+                node_id=node_id,
+                source_path=("judgments", judgment.id),
             )
-        return DecisionResult(
-            answer,
-            subject_names,
-            tuple(record.id for record in records) + (judgment_record.id,),
-            fingerprint,
-            batch.requested_model,
-            batch.returned_model,
-            batch.usage,
-        )
+            emit(
+                EventKind.OPERATION_FAILED,
+                reason_code=diagnostic.code,
+                data={
+                    "definition_id": judgment.id,
+                    "question_id": node_id,
+                    "diagnostic": diagnostic.to_dict(),
+                },
+            )
+            raise
+        except Exception as error:
+            diagnostic = diagnostic_for_error(
+                error,
+                definition_id=judgment.id,
+                node_id=node_id,
+                source_path=("judgments", judgment.id),
+            )
+            emit(
+                EventKind.OPERATION_FAILED,
+                reason_code=diagnostic.code,
+                data={
+                    "definition_id": judgment.id,
+                    "question_id": node_id,
+                    "diagnostic": diagnostic.to_dict(),
+                },
+            )
+            raise
 
     async def assess(
         self,

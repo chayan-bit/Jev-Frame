@@ -839,6 +839,9 @@ class RunContext:
         default=None, repr=False, compare=False
     )
     evidence_session: Any = field(default=None, repr=False, compare=False)
+    run_id: str | None = None
+    correlation_id: str | None = None
+    parent_operation_id: str | None = None
 
     def __post_init__(self) -> None:
         _text(self.scope, "run scope")
@@ -854,6 +857,13 @@ class RunContext:
             raise DefinitionError("run clock must be callable")
         if self.event_sink is not None and not callable(self.event_sink):
             raise DefinitionError("event sink must be callable")
+        for value, name in (
+            (self.run_id, "run id"),
+            (self.correlation_id, "correlation id"),
+            (self.parent_operation_id, "parent operation id"),
+        ):
+            if value is not None:
+                _text(value, name)
         object.__setattr__(
             self, "host_dependencies", MappingProxyType(dict(self.host_dependencies))
         )

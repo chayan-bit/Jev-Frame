@@ -89,6 +89,25 @@ from .definitions import (  # noqa: F401
     ensure_supported_type,
     validate_value,
 )
+from .inspection import (  # noqa: F401
+    DECISION_RESULT_SCHEMA_VERSION,
+    EVENT_SCHEMA_VERSION,
+    INSPECTION_SCHEMA_VERSION,
+    DecisionInspection,
+    DiagnosticCategory,
+    EventKind,
+    EventLog,
+    EventSerializationError,
+    InspectionError,
+    InspectionProjection,
+    JevEvent,
+    OmittedField,
+    PublicDiagnostic,
+    diagnostic_for_error,
+    diagnostic_for_unresolved,
+    inspect_decision,
+    serialize_decision_result,
+)
 from .limits import (  # noqa: F401
     AdmissionError,
     BudgetExhaustedError,

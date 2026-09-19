@@ -144,6 +144,7 @@ class ModelJudgment(EvidenceRecord):
     requested_model: str
     returned_model: str | None
     candidate_snapshot_digest: str | None = None
+    presented_candidate_keys: tuple[str, ...] = ()
     kind: ClassVar[EvidenceKind] = EvidenceKind.JUDGMENT
 
     def __post_init__(self) -> None:
@@ -157,6 +158,7 @@ class ModelJudgment(EvidenceRecord):
         ):
             _name(value, name)
         _names(self.subjects, "judgment subjects")
+        _names(self.presented_candidate_keys, "presented candidate keys")
         if self.returned_model is not None:
             _name(self.returned_model, "returned model")
 

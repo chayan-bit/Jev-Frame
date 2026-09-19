@@ -2,8 +2,8 @@
 
 A proposed Python framework for building Jev agents and integrating Jev decisions into existing LLM agents.
 
-**Status: JF-06 standalone decision operations and shared admission accounting implemented; diagnostics and inspection are next.**
-The local package exposes strict definitions, run-local state, deterministic compilation and preview, the asynchronous official SDK adapter, and direct `DecisionClient` operations that do not start an agent scheduler.
+**Status: JF-07 sanitized direct-decision events and inspection implemented; reusable packages are next.**
+The local package exposes strict definitions, run-local state, deterministic compilation and preview, the asynchronous official SDK adapter, direct `DecisionClient` operations, and default-safe decision inspection.
 Live provider compatibility remains unverified, and the package does not yet implement the agent scheduler or executable examples.
 This is an independent project, not an official TypeSafe product.
 
@@ -163,6 +163,14 @@ It records observed, estimated, reserved, released, and unknown token usage as d
 Token observations are recorded once for the whole provider batch rather than multiplied by question count, while every retry resubmits and therefore consumes its question count.
 Reservations and estimates are accounting evidence, not a guaranteed billing ceiling without a defensible worst-case price and token bound.
 
+`DecisionClient.events` retains schema-versioned run-local events for direct decisions and optionally forwards the same allowlisted dictionaries to `RunContext.event_sink`.
+`RunContext` may carry explicit run, correlation, and parent-operation IDs, while each provider attempt retains its admitted attempt ID and each completion retains its usage coverage.
+Sink failures are counted locally and do not alter decision semantics, and no telemetry destination is configured by default.
+`serialize_decision_result` emits only the primitive answer, recorded evidence references, model IDs, usage, and public acceptance reason codes.
+`inspect_decision` verifies that a result resolves to one recorded `ModelJudgment`, validates candidate and policy evidence links, and reports presented candidate keys, bindings, unresolved reasons, and an omitted-field manifest.
+Evidence values, exact questions, candidate contents, and unresolved details remain absent unless the caller supplies an explicit `InspectionProjection.permitted_exact(...)` after applying its own authorization policy.
+Public diagnostics identify the failure category, definition, node, source path, corrective action, and optional capability without copying arbitrary exception messages.
+
 `Judgment` contains a stable ID and version, one primitive definition, explicit subject selectors, evidence selectors, an optional explicit `candidate_set`, dependency IDs, applicability, and an optional acceptance-policy ID.
 Its primitive is exactly one of `ChoiceQuestion`, `NoulQuestion`, or `ScoreQuestion`.
 Choice criteria are either at least two fixed options or empty with an explicit `candidate_set`; fixed and dynamic options cannot be mixed.
@@ -201,7 +209,7 @@ definition = AgentDefinition(
 result = await runtime.run(definition, request, run_context)
 ```
 
-`RunContext` contains `scope`, opaque `host_dependencies`, opaque `authority_context`, a monotonic `deadline`, `RunLimits`, an injectable clock, an optional sanitized event sink, and an optional existing evidence session.
+`RunContext` contains `scope`, opaque `host_dependencies`, opaque `authority_context`, a monotonic `deadline`, `RunLimits`, an injectable clock, an optional sanitized event sink, an optional existing evidence session, and optional run, correlation, and parent-operation IDs.
 `RunLimits` contains finite nonnegative limits for provider attempts, submitted questions, tool attempts, investigation steps, concurrent operations, writes, planner calls, plan revisions, child depth, and total child runs.
 Zero disables that work class, negative or unlimited values are invalid, and cancellation is the caller task's normal asynchronous cancellation rather than a second token protocol.
 
@@ -219,6 +227,7 @@ Evidence records share `id`, `kind`, typed value or retained reference, source I
 Concrete kinds are `Observation`, `Derivation`, `JudgmentRecord`, `AcceptanceRecord`, `AuthorizationRecord`, `ExecutionRecord`, and `ChildFinding`.
 Contradictory records are linked rather than overwritten, and an evidence view either includes required conflicts or reports insufficient capacity.
 Events use schema version `jev-frame.event.v1`, monotonically increasing run-local sequence numbers, correlation IDs, public reason codes, and allowlisted data only.
+The implemented direct path emits operation-started, attempt-admitted, operation-completed, operation-failed, and operation-cancelled events and propagates cancellation after recording it.
 
 ### Failure and ownership rules
 
@@ -514,12 +523,14 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `src/jev_frame/provider.py` | Official asynchronous TypeSafe SDK transport, retry ownership, strict response validation, and normalized answers |
 | `src/jev_frame/limits.py` | Atomic shared attempt, question, concurrency, deadline, reservation, and usage accounting |
 | `src/jev_frame/decisions.py` | Standalone evaluate, select, filter, assess, score, exact extraction, and portable callable operations |
+| `src/jev_frame/inspection.py` | Sanitized event records, result serialization, permitted inspection projections, and actionable diagnostics |
 | `src/jev_frame/__init__.py` | Small public export surface |
 | `tests/test_definitions.py` | Offline JF-02 behavior and failure checks |
 | `tests/test_state.py` | Offline JF-03 candidate and evidence-state checks |
 | `tests/test_compiler.py` | Offline JF-04 compiler, preview, dependency, and limit checks |
 | `tests/test_provider.py` | Offline JF-05 SDK wire, response, retry, ownership, cancellation, and usage checks |
 | `tests/test_decisions.py` | Offline JF-06 direct-operation, provenance, selection, extraction, and concurrent-admission checks |
+| `tests/test_inspection.py` | Offline JF-07 correlation, redaction, exact projection, diagnostic, sink-failure, and cancellation checks |
 
 The [implementation plan for Sol](IMPLEMENTATION_PLAN.md) defines the frozen public contracts, implementation sequence, behavioral checks, and delivery gates for this design.
 JF-01 froze the names and interfaces above after read-only compatibility checks; later changes require an explicit synchronized contract revision.
@@ -528,6 +539,7 @@ JF-03 implements run-local evidence provenance, immutable candidate snapshots, e
 JF-04 implements pure backward compilation and offline preview without retrieval, tool, or provider dispatch.
 JF-05 implements the official asynchronous SDK boundary and validates its wire behavior with mock transport only; no live provider request has been made.
 JF-06 implements the direct decision API and one shared in-memory ledger without adopting the agent scheduler or optional host frameworks.
+JF-07 implements the shared event and inspection vocabulary on the direct path without adding external telemetry, persistence, replay, or a web UI.
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
 The agent runtime, guarded execution, integrations, and extended capabilities remain assigned to later issues.
 The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.
