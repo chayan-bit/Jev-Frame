@@ -390,6 +390,19 @@ Document processing remains a generic capability package with injected retrieval
 Tool discovery works within host-supplied registrations and does not scan installed packages or connect to arbitrary remote servers.
 These features expand what an application can compose around Jev without changing the model's native input or output capabilities.
 
+`CapabilityCatalog` holds a finite tuple of asynchronous `ForeignToolDescriptor` values and the scopes visible to that host-supplied catalog view.
+Discovery applies deterministic text matching only after scope filtering, returns opaque candidate keys and exact descriptor versions, and marks each snapshot `COMPLETE` or `TRUNCATED` with an expansion reference.
+An empty complete snapshot is the no-fit outcome; it is not interchangeable with a truncated snapshot.
+Discovery never imports a package, opens an MCP connection, activates a tool, or sends the catalog to a model.
+
+Activation requires an exact `CapabilityReference` plus application-supplied `ImportedToolSemantics` for every binding, effect, evidence input and output, and scope requirement.
+The current catalog rechecks the descriptor version and schema digest before producing an ordinary `Tool`, so a changed schema invalidates an older selection.
+The importer maps a deliberately small JSON Schema subset to the framework's frozen types, requires closed property objects, and rejects references, combinators, unrestricted objects, constraints it cannot preserve, and other lossy constructs.
+Imported `PURE` and `READ` calls dispatch once through the shared runtime, retain the host callable's cancellation and error behavior, and undergo the usual strict argument and result validation.
+Foreign mutations are rejected by this schema importer because JSON Schema cannot supply the required receipt, idempotency, reconciliation, and durable-intent contract; applications must wrap such a callable as an authored Jev `Tool`.
+`mcp_tool_descriptor` accepts only one descriptor from an already configured host session, while `jev_frame.integrations.langchain.existing_tool_descriptor` adapts an actual LangChain tool through its native `ainvoke` method.
+The host continues to own MCP transport, credentials, approvals, retries, and session lifecycle.
+
 ## Public concept responsibilities
 
 These concepts summarize the frozen initial API responsibilities; their foundations are implemented through JF-04.
@@ -568,6 +581,7 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `src/jev_frame/decisions.py` | Standalone evaluate, select, filter, assess, score, exact extraction, and portable callable operations |
 | `src/jev_frame/inspection.py` | Sanitized event records, result serialization, permitted inspection projections, and actionable diagnostics |
 | `src/jev_frame/investigation.py` | Bounded unresolved-reason actions, investigation needs, and typed results |
+| `src/jev_frame/capabilities.py` | Finite foreign-tool descriptors, strict schema import, scoped catalog discovery, and explicit activation |
 | `src/jev_frame/packages.py` | Typed package binding and the generic document-evidence capability package |
 | `src/jev_frame/policy.py` | Versioned semantic policies, exact action/checkpoint records, authorization, receipts, and durable intent contracts |
 | `src/jev_frame/runtime.py` | Shared scheduler, read and guarded mutation dispatch, completion checks, cancellation, and terminal results |
@@ -581,6 +595,7 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `tests/test_decisions.py` | Offline JF-06 direct-operation, provenance, selection, extraction, and concurrent-admission checks |
 | `tests/test_inspection.py` | Offline JF-07 correlation, redaction, exact projection, diagnostic, sink-failure, and cancellation checks |
 | `tests/test_investigation.py` | Offline JF-11 expansion, selective reevaluation, conflict, no-progress, scope, budget, and clarification checks |
+| `tests/test_capabilities.py` | Offline JF-14 schema import, scope, version, discovery, MCP-session, dispatch, error, and cancellation checks |
 | `tests/test_packages.py` | Offline JF-08 package reuse, binding validation, evaluator isolation, and version-identity checks |
 | `tests/test_policy.py` | Offline JF-10 acceptance, authorization, revalidation, receipt, reconciliation, and cancellation checks |
 | `tests/test_runtime.py` | Offline JF-09 scheduling, isolation, completion, stale-input, failure, and cancellation checks |
@@ -597,8 +612,10 @@ JF-08 implements explicit package binding and the generic document-evidence pack
 JF-09 implements the shared read-only runtime without consequential writes, investigation, child composition, planning, distributed queues, or durable resume.
 JF-10 implements guarded mutation dispatch against synthetic services without claiming exactly-once effects, core-owned durable storage, real application authorization, or hostile-callable sandboxing.
 JF-11 implements deterministic read-only investigation and host-linked typed clarification without a universal value-of-information model, automatic messaging, or durable core resume.
+JF-12 and JF-13 implement optional LangChain, LangGraph, and Pydantic AI boundaries with offline framework doubles while preserving host loop ownership.
+JF-14 implements finite scoped discovery and explicit read-only host-tool import without scanning packages, opening MCP sessions, or inferring authority from schemas.
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
-Framework integrations and extended capabilities remain assigned to later issues.
+Remaining extended capabilities stay assigned to later issues.
 The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.
 
 ## Further reading

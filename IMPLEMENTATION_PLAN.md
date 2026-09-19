@@ -1274,3 +1274,12 @@ At every substantive stopping point, update a compact continuation entry in `.co
 - Native reuse: scripted `TypeSafeModel` conformance preserves a bounded Noul probability, returns the nearest rubric level while retaining the fractional score and distribution, and leaves usage partial or unknown when the real Jev request count is absent.
 - Verification: offline tests invoke real `Agent`, `FunctionModel`, `Tool`, `ToolOutput`, and `TypeSafeModel` interfaces; cover optional skip, Noul and Score records, hidden scope, provider failure, cancellation, changed output, rejected checkpoint, special output-tool placement, and fallback usage omission.
 - Remaining gates: no live TypeSafe or fallback model, application authorization, business mutation, publication, or deployment was exercised or authorized.
+
+### JF-14 existing-tool import and discovery checkpoint — 2026-09-19
+
+- Objective: import explicitly supplied host tools and retrieve bounded capability candidates without scanning packages, opening sessions, or inferring authority from foreign schemas.
+- Decisions: catalog queries filter scope before deterministic text matching, candidate keys bind catalog, tool, descriptor version, schema digest and scope, complete empty snapshots mean no-fit, and expansion remains bounded by the catalog maximum.
+- Activation: application metadata must supply every binding, effect, evidence declaration and scope requirement before an ordinary `Tool` is created; changed schemas invalidate selections and the shared runtime owns the one admitted dispatch.
+- Schema boundary: only closed finite JSON Schema structures that map losslessly to the frozen type subset are accepted; foreign mutations require an application-authored Jev `Tool` because their receipt and reconciliation contract cannot be inferred from schemas.
+- Verification: focused offline checks use a fake configured MCP session and a real LangChain tool with no remote service, and cover missing semantics, scope isolation, truncation, no-fit, bounded expansion, malformed schemas, stale versions, strict runtime dispatch, errors and cancellation.
+- Remaining gates: no real MCP server, remote framework service, credentials, business mutation, semantic catalog selection, publication, or deployment was exercised or authorized.

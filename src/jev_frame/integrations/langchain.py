@@ -5,6 +5,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, TypeVar
 
+from ..capabilities import CapabilityImportError, ForeignToolDescriptor
 from ..decisions import DecisionClient, DecisionInputs
 from ..definitions import DecisionContext, DecisionResult, JevFrameError, Judgment
 from ..inspection import serialize_decision_result
@@ -80,6 +81,39 @@ def decision_tool(
         args_schema=args_schema,
         response_format="content_and_artifact",
     )(invoke)
+
+
+def existing_tool_descriptor(
+    tool_value: Any,
+    *,
+    version: str,
+    scopes: tuple[str, ...],
+    output_schema: Mapping[str, Any],
+    source_id: str = "langchain",
+) -> ForeignToolDescriptor:
+    """Describe an existing LangChain tool without taking over its dispatch loop."""
+
+    args_schema = getattr(tool_value, "args_schema", None)
+    model_json_schema = getattr(args_schema, "model_json_schema", None)
+    ainvoke = getattr(tool_value, "ainvoke", None)
+    if not callable(model_json_schema) or not callable(ainvoke):
+        raise CapabilityImportError(
+            "LangChain tool must expose args_schema and ainvoke"
+        )
+
+    async def invoke(arguments: Mapping[str, Any]) -> Any:
+        return await ainvoke(dict(arguments))
+
+    return ForeignToolDescriptor(
+        tool_value.name,
+        version,
+        tool_value.description,
+        model_json_schema(),
+        output_schema,
+        invoke,
+        scopes,
+        source_id,
+    )
 
 
 def required_checkpoint_node(

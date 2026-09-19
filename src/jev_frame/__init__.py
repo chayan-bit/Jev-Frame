@@ -1,5 +1,14 @@
 """Public Jev-Frame contracts."""
 
+from .capabilities import (  # noqa: F401
+    CapabilityCatalog,
+    CapabilityImportError,
+    CapabilityReference,
+    ForeignToolDescriptor,
+    ImportedToolSemantics,
+    StaleCapabilityError,
+    mcp_tool_descriptor,
+)
 from .compiler import (  # noqa: F401
     MAX_CHOICE_OPTIONS,
     MAX_SCORE_LEVELS,

@@ -7,9 +7,10 @@ from typing import Any, NotRequired, TypedDict
 
 try:
     from langchain.messages import AIMessage
+    from langchain.tools import tool as langchain_tool
     from langgraph.graph import END, START, MessagesState, StateGraph
     from langgraph.prebuilt import ToolNode
-    from pydantic import BaseModel
+    from pydantic import BaseModel, ConfigDict
 except ImportError as error:  # pragma: no cover - core-only installation
     raise unittest.SkipTest("jev-frame[langchain] is not installed") from error
 
@@ -18,10 +19,12 @@ from jev_frame import (
     ActionProposal,
     AttemptAdmission,
     AttemptStatus,
+    CapabilityCatalog,
     DecisionClient,
     DecisionContext,
     DecisionInputs,
     EvidenceSelector,
+    ImportedToolSemantics,
     InputValidationError,
     Judgment,
     NoulAnswer,
@@ -33,6 +36,8 @@ from jev_frame import (
     RequiredCheckpoint,
     RunLimits,
     Subject,
+    TaskInputBinding,
+    ToolEffect,
     Usage,
     UsageCoverage,
 )
@@ -41,6 +46,7 @@ from jev_frame.integrations.langchain import (
     LangChainDecisionContext,
     RequiredCheckpointRejected,
     decision_tool,
+    existing_tool_descriptor,
     required_checkpoint_node,
 )
 from jev_frame.policy import CheckpointRecord
@@ -48,6 +54,12 @@ from jev_frame.policy import CheckpointRecord
 
 class DecisionArguments(BaseModel):
     statement: str
+
+
+class ExistingToolArguments(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str
 
 
 class OfflineProvider:
@@ -221,6 +233,46 @@ class LangChainDecisionIntegrationTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(provider.cancelled.is_set())
         self.assertEqual(provider.calls, ["judge:claim"])
+
+
+class LangChainExistingToolTests(unittest.IsolatedAsyncioTestCase):
+    async def test_existing_tool_uses_real_langchain_dispatch_once(self) -> None:
+        calls: list[str] = []
+
+        @langchain_tool(
+            "prefix_text",
+            args_schema=ExistingToolArguments,
+            description="Prefix supplied text.",
+        )
+        async def prefix_text(text: str) -> str:
+            calls.append(text)
+            return f"prefix:{text}"
+
+        foreign = existing_tool_descriptor(
+            prefix_text,
+            version="1.0.0",
+            scopes=("fixture",),
+            output_schema={"type": "string"},
+        )
+        catalog = CapabilityCatalog(
+            "langchain-tools", "1.0.0", (foreign,), ("fixture",)
+        )
+        reference = catalog.discover("prefix", "fixture", limit=1).candidates[0].value
+        imported = catalog.activate(
+            reference,
+            ImportedToolSemantics(
+                bindings={"text": TaskInputBinding(("text",))},
+                effect=ToolEffect.READ,
+                requires_evidence=(),
+                produces_evidence=("prefixed",),
+                scope_requirements=("scope",),
+            ),
+        )
+
+        result = await imported.function(text="value")
+
+        self.assertEqual(result, "prefix:value")
+        self.assertEqual(calls, ["value"])
 
 
 class ActionState(TypedDict):
