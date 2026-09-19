@@ -11,14 +11,18 @@ Project-local configuration may require the normal Codex project trust step befo
 
 ## Implementation checkpoint
 
-- Objective: implement the eleven authorized audit correctness fixes before resuming JF-17.
-- State: branch `codex/jev-frame-implementation` at audited baseline `d3743ed`; JF-01 through JF-16 are committed and GitHub #17 is closed.
-- Completed: slices A through D repair the validation, scope, evidence, execution, and reconciliation boundaries; slice E rejects planner overrides before dispatch, bounds asynchronous planner and validator callbacks, and propagates one effective root identity through step and evidence namespaces.
-- Checks: planner regressions cover all accepted argument variants, valid fixed arguments, late and stalled callbacks, expired step dispatch, external cancellation, sequential implicit and explicit identities, shared evidence, and cross-turn `EvidenceValue`; all 11 planning and optional-framework tests pass with Ruff and mypy.
-- Failures: all eleven supplied synthetic audit probes reproduced against `d3743ed`; planner probes now show bounded late results and two implicit runs dispatching independently, while the old cross-turn `StepValue` probe remains unresolved because that reference is intentionally revision-local.
-- Remaining: synchronize the README and implementation plan, run the complete audit probes and verification matrix, inspect all diffs, and report any uncovered regression.
-- External gates: no live provider, real external effect, paid compute, publication, deployment, push, PR, or GitHub issue mutation is authorized by the audit task.
-- Next action: commit slice E, document the corrected contracts and revision-local `StepValue` rule, then run full source, examples, build, wheel, and supported-Python verification.
+- The objective was to implement and verify the eleven authorized audit correctness fixes before resuming JF-17.
+- The branch is `codex/jev-frame-implementation`, the audited baseline is `d3743ed`, JF-01 through JF-16 are committed, and GitHub #17 is closed.
+- Commits `755454f`, `5005ab8`, `f37a95d`, `10cd337`, and `9fc7d1c` repair strict values, immutable snapshots, imported scope, MCP errors, completion and mutation freshness, reconciliation evidence, planner arguments, deadlines, and run identities.
+- The changed implementation and regression files are `src/jev_frame/definitions.py`, `src/jev_frame/state.py`, `src/jev_frame/capabilities.py`, `src/jev_frame/runtime.py`, `src/jev_frame/planning.py`, and their focused existing test modules.
+- The command `uv run --frozen --all-extras python -m unittest discover -s tests -v` passes all 119 tests.
+- The commands `uv run --frozen --all-extras --with ruff ruff check src tests examples` and `uv run --frozen --all-extras --with mypy mypy src/jev_frame --ignore-missing-imports` pass with no findings.
+- The full 119-test suite passes in isolated CPython 3.11 and 3.14 environments, and both versions compile `src` and `examples` successfully.
+- All three offline examples pass, `uv build` produces the wheel and source distribution, and a Python 3.11 environment outside the checkout imports the installed wheel without LangChain or Pydantic AI installed.
+- The supplied execution and MCP probes now fail closed, the planner probe has unique implicit identities and bounded late work, and the evidence probe stops at the expected strict-Literal rejection before reaching its old mutable-snapshot check.
+- The regression suite separately proves immutable detached snapshots and documents that `StepValue` is revision-local while cross-turn reuse uses `StepOutcome.evidence_ref` through `EvidenceValue`.
+- The remaining gates are live-provider compatibility, application acceptance calibration, consequential real effects, publication, deployment, push, PR creation, and GitHub issue mutation, none of which was authorized by the audit task.
+- The next action is to inspect and commit the synchronized documentation, then resume JF-17 only under the original backlog authorization.
 
 Use current official TypeSafe documentation when work resumes.
 Do not copy private project history or local credentials into this repository.

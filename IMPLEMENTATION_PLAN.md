@@ -189,6 +189,7 @@ The finite initial subset is `str`, `int`, `float`, `bool`, `None`, string-value
 General unions, tuples, sets, unresolved annotations, variadic and positional-only parameters, arbitrary objects, and unsupported generics are rejected initially.
 Reject unsupported signatures, unresolved annotations, variadic parameters, and arbitrary object values during definition validation.
 Do not coerce a string into an integer, a boolean into an identifier, or a fabricated default into a source value silently.
+Compare literal members by both exact scalar type and value, so Python's equality between booleans and integers cannot cross their declared boundary.
 
 Every tool parameter must have exactly one declared binding strategy.
 
@@ -226,6 +227,7 @@ Adapters must register observations through the typed boundary and refresh sourc
 
 Each candidate has an opaque local key, a typed value, model-visible descriptive fields, provenance, and a source version where available.
 Separate execution-only fields from model-visible fields, and reject evaluator labels from the latter.
+Detach and recursively freeze list and mapping values when the snapshot is created, and reject mutable dataclass or Pydantic model candidates.
 Snapshot identity includes candidate membership, order, descriptions, source versions, and the retrieval query or expansion parameters.
 Use a reserved no-fit outcome that cannot collide with a real candidate key.
 
@@ -353,6 +355,7 @@ Initially batch identical compatible views; add view union only with explicit pr
 Speculative questions state their premise explicitly and their answers remain conditional until the branch applies.
 Do not use a speculative answer in completion, a tool binding, or a child run when its premise is false or unaccepted.
 External writes are never dispatched merely because their branches might become applicable.
+Resolve required and result-bound completion evidence in the current scope immediately before and after an awaited semantic completion callback.
 
 Document consistency groups for reads against mutable sources.
 If a host cannot offer a coherent snapshot, preserve source versions and surface incompatible observations as a conflict.
@@ -401,13 +404,17 @@ Before invoking an effectful tool, perform all of these independent checks:
 
 Model-visible text cannot grant authority, alter host identity, or disable validation.
 Host approval applies to an exact action digest, scope, source versions, and validity period, and must be checked again if any of them change.
+After any awaited authorization, persistence, admission, or checkpoint call, revalidate the deadline, exact arguments, evidence versions, action digest, and authorization immediately before dispatch.
+This local guard does not replace a downstream conditional write or transaction.
 Require an explicit mutation effect declaration; do not infer safety from a function name or a model judgment.
 
 Use the write states `proposed`, `authorized`, `in_flight`, `succeeded`, `failed_before_effect`, and `outcome_unknown`.
 Only a trustworthy downstream guarantee can justify `failed_before_effect` after dispatch.
 A timeout, lost response, cancelled wait, or invalid receipt after a request may have been accepted must enter `outcome_unknown`.
+Record that local `outcome_unknown` evidence before propagating cancellation, even when no durable store is configured.
 Reconcile through an operation lookup or equivalent read before another attempt.
 Retry with the same idempotency key only when the downstream contract makes that safe, or when reconciliation establishes that the earlier effect did not occur and current authorization still permits it.
+Preserve a trusted `failed_before_effect` reconciliation receipt as the final failed outcome instead of degrading it to unknown.
 If reconciliation is unavailable or inconclusive, return an unresolved execution outcome and do not retry blindly.
 
 With an in-memory runtime, process termination loses local intent records.
@@ -472,9 +479,14 @@ LLM-suggested judgments are permitted as bounded advisory questions with explici
 An optional planner receives an objective string, the available capability catalog, current observations, prior action outcomes, and remaining limits.
 It returns a next action, a finite dependency plan, a clarification need, or a proposed final result through a typed response contract.
 Validate newly generated plan instances against registered tools, argument-source rules, dependencies, and effect declarations before admission.
+Reject any proposed argument whose name is also supplied by the capability's fixed arguments, independently of the proposed value source.
+Treat `StepValue` and `depends_on` as references within one `PlanRevision`; use a prior outcome's recorded evidence reference with `EvidenceValue` across planner turns.
 Run the configured Jev judgments on plan candidates, evidence, intermediate artifacts, or completion wherever the author places them.
 Use the normal tool executor and completion policy, then feed actual outcomes back to the planner when replanning is needed.
 Bound planning calls and plan revisions alongside investigation, and stop unchanged proposal cycles with an unresolved reason.
+Generate one effective root run identity when the caller omits one, and use it to namespace planner calls, revisions, steps, and evidence records.
+Bound asynchronous planner and result-validator callbacks by the monotonic run deadline while preserving cancellation.
+Reject a blocking synchronous callback's result if it returns after the deadline, but do not claim that Python can safely interrupt arbitrary synchronous code.
 Validate a proposed final result against the host-defined completion contract; an LLM's declaration that it is done does not replace that check.
 For unrestricted objectives, a general result contract may accept a typed deliverable or clarification instead of enumerating every possible task in advance.
 
@@ -551,6 +563,8 @@ No captured trace is an executable resume token, authorization grant, or permiss
 
 Use a finite host-registered tool catalog and public framework/MCP interfaces; do not scan the machine or open new server connections automatically.
 Validate or reject foreign schemas against the supported type subset, and require explicit bindings, scope, and effect metadata missing from their descriptors.
+Bind every activated foreign tool to the exact catalog scope and reject cross-scope dispatch before argument evaluation or invocation.
+Treat MCP `isError` or equivalent protocol status as failure before validating structured result content.
 Refresh changed tool schemas under a new version and invalidate affected pending choices.
 Retrieve a scoped shortlist with coverage metadata before semantic selection, retain a no-fit outcome, and bound expansion.
 The host supplies an already configured MCP session; transport, credentials, approvals, and connection lifecycle remain its responsibility.
@@ -1302,3 +1316,13 @@ At every substantive stopping point, update a compact continuation entry in `.co
 - Frameworks: real LangChain `RunnableLambda` and Pydantic AI `Agent` plus `FunctionModel` interfaces drive the planner offline while Jev-Frame retains dispatch and completion ownership.
 - Verification: six focused core tests and two optional-framework tests cover an unseen three-step objective, changed retrieval, invented tools and evidence, no-progress, rejected completion, one-time specialist effects, zero-survivor no-fit, and one admitted Jev selection.
 - Remaining gates: no live planner, live TypeSafe request, consequential real effect, application acceptance calibration, publication, or deployment was exercised or authorized.
+
+### Correctness audit checkpoint — 2026-09-20
+
+- The objective was to repair the eleven reported validation, scope, evidence, execution, reconciliation, and planning boundary defects without expanding the roadmap.
+- Commits `755454f`, `5005ab8`, `f37a95d`, `10cd337`, and `9fc7d1c` contain the implementation and focused regressions.
+- The shared boundaries now enforce exact literal types, detached immutable candidate snapshots, exact imported activation scope, MCP protocol errors, current completion evidence, final mutation revalidation, preserved unknown reconciliation evidence, trusted no-effect reconciliation, planner fixed arguments, callback deadlines, and consistent run identities.
+- `StepValue` and `depends_on` remain revision-local by contract, while cross-turn reuse resolves the prior `StepOutcome.evidence_ref` through `EvidenceValue`.
+- The full 119-test suite passes under CPython 3.11 and 3.14 with all optional integrations, Ruff and mypy pass, all offline examples pass, both distribution artifacts build, and an isolated core-only wheel import passes.
+- The supplied audit probes now fail closed or return the documented unresolved or failed states, with one expected early `InputValidationError` proving the strict-Literal boundary.
+- No live model, consequential external write, application acceptance calibration, publication, deployment, push, pull request, or GitHub issue mutation was exercised under the audit authorization.

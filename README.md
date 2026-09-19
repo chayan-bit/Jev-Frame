@@ -2,7 +2,7 @@
 
 A proposed Python framework for building Jev agents and integrating Jev decisions into existing LLM agents.
 
-**Status: JF-11 bounded investigation, selective candidate expansion, and typed clarification implemented; reference framework integration is next.**
+**Status: JF-16 hybrid planning and the audited correctness boundaries are implemented locally; JF-17 evaluation support is the next backlog issue.**
 The local package exposes strict definitions, run-local state, deterministic compilation and preview, the asynchronous official SDK adapter, direct decisions, default-safe inspection, explicitly bound capability packages, and one shared runtime.
 Live provider compatibility remains unverified, and no real consequential write has been authorized or exercised.
 This is an independent project, not an official TypeSafe product.
@@ -105,6 +105,7 @@ Jev-Frame therefore uses the official SDK adapter for canonical `ChoiceAnswer`, 
 
 The initial supported application type subset is `str`, `int`, `float`, `bool`, `None`, string-valued `Enum`, `Literal`, `list[T]`, `dict[str, T]`, `T | None`, dataclasses, and Pydantic `BaseModel` records composed from the same subset.
 Integers and booleans remain distinct, mapping keys must be strings, arbitrary objects are rejected, and only `T | None` is accepted as a general union.
+`Literal` members use their exact scalar types, so `True` cannot satisfy `Literal[1]` and `1` cannot satisfy `Literal[True]`.
 Unresolved annotations, variadic parameters, positional-only parameters, unsupported generics, and callable return annotations outside this subset are definition errors.
 Strict validation does not coerce strings to numbers, booleans to identifiers, or arbitrary mappings to application objects silently.
 
@@ -183,8 +184,9 @@ No acceptance policy means the result is `unassessed`; the call may still succee
 Definition and caller-input errors fail before dispatch, provider and response-validation failures are typed errors, and `asyncio.CancelledError` is recorded for inspection and then propagated.
 
 `AgentDefinition[InputT, OutputT]` groups a stable ID and version, objective family, input and output types, explicit tools, judgments, candidate providers, capability packages, a `CompletionContract`, and an `OperatingPolicy`.
-`Tool` wraps an ordinary callable with purpose, strict input and output types, bindings, evidence requirements and possible outputs, scope requirements, timeout, retry ownership, and an explicit `PURE`, `READ`, or `MUTATION` effect.
+`Tool` wraps an ordinary callable with purpose, strict input and output types, bindings, evidence requirements and possible outputs, scope requirements, optional exact activation scopes, timeout, retry ownership, and an explicit `PURE`, `READ`, or `MUTATION` effect.
 `CandidateSet` is an immutable ordered snapshot with opaque keys, model-visible descriptions, execution-only values, source versions, retrieval parameters, coverage, and an optional bounded expansion reference.
+Snapshot construction recursively detaches and freezes lists and mappings, and it rejects mutable dataclass and Pydantic model values instead of retaining caller-owned mutable state.
 `CapabilityPackage` is an explicit versioned group of definitions and bindable application functions; identifier collisions fail instead of replacing registrations.
 Candidate providers now declare bindings for every typed function parameter, using the same task-input, host-context, constant, and default sources as other registered capabilities.
 Package IDs and versions are serialized into the compiled program and therefore affect its canonical digest even when inner definitions are unchanged.
@@ -201,8 +203,11 @@ The runtime retrieves declared candidate snapshots, recompiles against their exa
 Dependent judgments always use later provider calls, and an inactive applicability branch cannot bind a result or complete the run.
 Only `PURE` and `READ` tools are admitted in JF-09, tool outputs are strictly validated, and declared blocking callables use bounded worker threads whose underlying work may outlive cancellation of the await.
 Freshness is checked before dispatch and acceptance, so a late answer over changed evidence remains historical and cannot satisfy completion.
+Required and result-bound evidence is rechecked in the current scope immediately before and after an awaited completion callback.
 Application-supplied completion callbacks validate semantic acceptance separately from the typed output schema.
 JF-10 additionally admits declared `MUTATION` tools only after a versioned semantic policy, any configured required checkpoint, a current exact-action authorization, source and argument revalidation, write admission, and durable intent recording.
+After every awaited mutation gate, the runtime revalidates the exact arguments, evidence versions, action digest, authorization, and deadline immediately before calling the tool.
+This closes runtime time-of-check/time-of-use gaps but does not replace a downstream conditional write or transaction.
 The runtime records `outcome_unknown` after any possibly accepted request with no valid receipt and performs only the tool contract's declared reconciliation lookup; it never blindly retries an ambiguous write.
 Registered `InvestigationAction` values map explicit unresolved reasons and optional need IDs to bounded read-only callbacks ordered by stable priority.
 The shared ledger admits each semantic investigation separately from transport attempts, action fingerprints stop unchanged cycles, and scope filters fail closed.
@@ -397,10 +402,11 @@ Discovery never imports a package, opens an MCP connection, activates a tool, or
 
 Activation requires an exact `CapabilityReference` plus application-supplied `ImportedToolSemantics` for every binding, effect, evidence input and output, and scope requirement.
 The current catalog rechecks the descriptor version and schema digest before producing an ordinary `Tool`, so a changed schema invalidates an older selection.
+The activated tool records the catalog scope as an exact allowed scope, and the shared runtime rejects dispatch from any other scope before evaluating arguments or calling the foreign tool.
 The importer maps a deliberately small JSON Schema subset to the framework's frozen types, requires closed property objects, and rejects references, combinators, unrestricted objects, constraints it cannot preserve, and other lossy constructs.
 Imported `PURE` and `READ` calls dispatch once through the shared runtime, retain the host callable's cancellation and error behavior, and undergo the usual strict argument and result validation.
 Foreign mutations are rejected by this schema importer because JSON Schema cannot supply the required receipt, idempotency, reconciliation, and durable-intent contract; applications must wrap such a callable as an authored Jev `Tool`.
-`mcp_tool_descriptor` accepts only one descriptor from an already configured host session, while `jev_frame.integrations.langchain.existing_tool_descriptor` adapts an actual LangChain tool through its native `ainvoke` method.
+`mcp_tool_descriptor` accepts only one descriptor from an already configured host session and rejects MCP protocol error results before inspecting structured content, while `jev_frame.integrations.langchain.existing_tool_descriptor` adapts an actual LangChain tool through its native `ainvoke` method.
 The host continues to own MCP transport, credentials, approvals, retries, and session lifecycle.
 
 ## Public concept responsibilities
@@ -549,9 +555,15 @@ Do not automatically promote a generated plan into permanent policy.
 
 `PlannerEngine` gives Jev-Frame loop ownership while accepting any asynchronous planner callable that returns a typed `PlannerTurn`.
 Each call receives only the objective, registered capability descriptions, visible evidence, completed step outcomes, the previous plan, and the remaining revision allowance.
-Plans may use generated text, exact evidence references, or exact completed-step references, and validation rejects invented capability names, missing records, forbidden effects, duplicate step identities, and dependency cycles before dispatch.
+Plans may use generated text, exact evidence references, or exact completed-step references, and validation rejects invented capability names, missing records, fixed-argument overrides, forbidden effects, duplicate step identities, and dependency cycles before dispatch.
+Fixed arguments are host-owned and cannot also appear in a proposed step, regardless of whether the proposal uses generated text, an evidence reference, or a completed-step reference.
+`StepValue` and `depends_on` refer only to outcomes in the current `PlanRevision`.
+To reuse an earlier turn's result, the planner reads its `StepOutcome.evidence_ref` and supplies that exact record through `EvidenceValue`.
 Validated capabilities execute through the shared runtime, compiler, evidence state, provider adapter, accounting ledger, authority checks, and cancellation chain.
 Actual outcomes return to the planner after each step, failed or changed observations require a changed revision, and repeated unchanged plans stop with an explicit no-progress result.
+One effective root run identity namespaces planner calls, revisions, steps, and evidence records, including when the caller omits `RunContext.run_id`.
+Asynchronous planner and result-validator callbacks are bounded by the run's monotonic deadline and preserve caller cancellation.
+An arbitrary blocking synchronous callback cannot be interrupted safely; its result is rejected if it returns after the deadline, so hosts should use asynchronous callbacks for enforceable wall-clock bounds.
 Final proposed results remain subject to the host-supplied output type and semantic acceptance predicate, while clarification and typed handoff remain distinct terminal outcomes.
 `propose_select` filters host-generated alternatives before one Jev selection call and returns `NO_FIT` without provider dispatch when no valid candidates survive.
 The optional LangChain and Pydantic AI adapters turn their native runnable and agent interfaces into planner callables without transferring tool dispatch or completion authority.
