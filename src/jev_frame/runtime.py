@@ -89,11 +89,14 @@ from .state import (
     AcceptanceEvidence,
     Derivation,
     Evidence,
+    EvidenceNotFoundError,
+    EvidenceScopeError,
     EvidenceStore,
     ExecutionReference,
     ExecutionState,
     ModelJudgment,
     Observation,
+    StaleEvidenceError,
     bind_source,
     candidate_snapshot_digest,
     canonical_digest,
@@ -1248,42 +1251,72 @@ class Runtime:
         authorized = WriteRecord(proposal, ExecutionState.AUTHORIZED, authorization)
         await self._persist_write(tool, authorized)
 
-        try:
-            refreshed_arguments, refreshed_dependencies = self._tool_arguments(
-                tool, inputs, context, state
-            )
-            refreshed_evidence = tuple(
-                state.store.require_current(reference, context.scope)
-                for reference in refreshed_dependencies
-            )
-        except Exception as error:
-            raise _RunUnresolved(
-                Unresolved(
-                    UnresolvedReason.STALE_SOURCE,
-                    (tool.id,),
-                    "an approved action input is no longer current",
-                    needed="renew_authorization",
+        def current_action(
+            current_authorization: AuthorizationRecord,
+        ) -> tuple[dict[str, Any], tuple[str, ...], ActionProposal]:
+            if context.clock() >= context.deadline:
+                raise DeadlineExceededError("deadline expired before mutation dispatch")
+            try:
+                for binding in tool.bindings.values():
+                    if isinstance(binding, JudgmentBinding):
+                        reference = state.acceptance_refs.get(binding.judgment)
+                        if reference is None:
+                            raise _RunUnresolved(
+                                Unresolved(
+                                    UnresolvedReason.UNACCEPTED_JUDGMENT,
+                                    (binding.judgment,),
+                                    "a mutation input lacks current semantic acceptance",
+                                    needed=binding.judgment,
+                                )
+                            )
+                        state.store.require_current(reference, context.scope)
+                current_arguments, current_dependencies = self._tool_arguments(
+                    tool, inputs, context, state
                 )
-            ) from error
-        refreshed = ActionProposal(
-            operation_id,
-            tool.id,
-            tool.version,
-            refreshed_arguments,
-            context.scope,
-            source_versions(refreshed_evidence),
-        )
-        if refreshed.digest != proposal.digest or not authorization.permits(
-            refreshed, context.clock()
-        ):
-            raise _RunUnresolved(
-                Unresolved(
-                    UnresolvedReason.STALE_SOURCE,
-                    (tool.id,),
-                    "the approved action changed before dispatch",
-                    needed="renew_authorization",
+                current_evidence = tuple(
+                    state.store.require_current(reference, context.scope)
+                    for reference in current_dependencies
                 )
+            except _RunUnresolved:
+                raise
+            except Exception as error:
+                raise _RunUnresolved(
+                    Unresolved(
+                        UnresolvedReason.STALE_SOURCE,
+                        (tool.id,),
+                        "an approved action input is no longer current",
+                        needed="renew_authorization",
+                    )
+                ) from error
+            current = ActionProposal(
+                operation_id,
+                tool.id,
+                tool.version,
+                current_arguments,
+                context.scope,
+                source_versions(current_evidence),
             )
+            if current.digest != proposal.digest:
+                raise _RunUnresolved(
+                    Unresolved(
+                        UnresolvedReason.STALE_SOURCE,
+                        (tool.id,),
+                        "the approved action changed before dispatch",
+                        needed="renew_authorization",
+                    )
+                )
+            if not current_authorization.permits(current, context.clock()):
+                raise _RunUnresolved(
+                    Unresolved(
+                        UnresolvedReason.PERMISSION_DENIAL,
+                        (tool.id,),
+                        "the exact action authorization is no longer valid",
+                        needed=proposal.digest,
+                    )
+                )
+            return current_arguments, current_dependencies, current
+
+        refreshed_arguments, _, refreshed = current_action(authorization)
         try:
             current_authorization = await maybe_await(
                 self.authorizer.authorize(refreshed, context.authority_context)
@@ -1344,6 +1377,18 @@ class Runtime:
             )
             in_flight = WriteRecord(proposal, ExecutionState.IN_FLIGHT, authorization)
             await self._persist_write(tool, in_flight)
+            try:
+                refreshed_arguments, _, _ = current_action(authorization)
+            except (_RunUnresolved, DeadlineExceededError):
+                failed = WriteRecord(
+                    proposal, ExecutionState.FAILED_BEFORE_EFFECT, authorization
+                )
+                try:
+                    await self._persist_write(tool, failed)
+                except Exception as persistence_error:  # noqa: BLE001
+                    _ = persistence_error
+                self._record_execution(failed, dependencies, context, state)
+                raise
             try:
                 value = await self._call(
                     tool.function,
@@ -1767,9 +1812,17 @@ class Runtime:
         context: RunContext,
         state: _RunState,
     ) -> Any:
+        references = tuple(
+            dict.fromkeys(
+                (
+                    *definition.completion.required_findings,
+                    *definition.completion.result_bindings.values(),
+                )
+            )
+        )
         missing = [
             reference
-            for reference in definition.completion.required_findings
+            for reference in references
             if reference not in state.findings
         ]
         if missing:
@@ -1781,6 +1834,34 @@ class Runtime:
                     needed=missing[0],
                 )
             )
+
+        def require_current() -> None:
+            for reference in references:
+                evidence_reference = state.acceptance_refs.get(
+                    reference, state.decision_refs.get(reference, reference)
+                )
+                try:
+                    state.store.require_current(evidence_reference, context.scope)
+                except EvidenceNotFoundError as error:
+                    raise _RunUnresolved(
+                        Unresolved(
+                            UnresolvedReason.MISSING_EVIDENCE,
+                            (reference,),
+                            "required completion evidence is unavailable",
+                            needed=evidence_reference,
+                        )
+                    ) from error
+                except (EvidenceScopeError, StaleEvidenceError) as error:
+                    raise _RunUnresolved(
+                        Unresolved(
+                            UnresolvedReason.STALE_SOURCE,
+                            (reference,),
+                            "required completion evidence is no longer current",
+                            needed=evidence_reference,
+                        )
+                    ) from error
+
+        require_current()
         values = {
             field: state.findings[reference]
             for field, reference in definition.completion.result_bindings.items()
@@ -1823,6 +1904,7 @@ class Runtime:
         accepted = check(proposed, state.store)
         if inspect.isawaitable(accepted):
             accepted = await accepted
+        require_current()
         if type(accepted) is not bool:
             raise _ToolFailure("completion check must return bool")
         if not accepted:

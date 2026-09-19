@@ -1,8 +1,8 @@
 import asyncio
 import unittest
 from collections.abc import Sequence
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, replace
+from typing import Any, cast
 
 from jev_frame import (
     AcceptancePolicy,
@@ -277,6 +277,108 @@ def context(*, store: EvidenceStore | None = None, run_id: str = "write") -> Run
 
 
 class PolicyTests(unittest.IsolatedAsyncioTestCase):
+    async def test_final_mutation_freshness_check_follows_awaited_gates(self) -> None:
+        class SecondAuthorizationInvalidates(FakeAuthorizer):
+            def __init__(self, store: EvidenceStore) -> None:
+                super().__init__()
+                self.store = store
+
+            def authorize(
+                self, proposal: Any, authority_context: Any
+            ) -> AuthorizationRecord:
+                result = super().authorize(proposal, authority_context)
+                if len(self.proposals) == 2:
+                    self.store.invalidate("record_snapshot")
+                return result
+
+        source_store = EvidenceStore(lambda: 0.0)
+        source_service = FakeService()
+        source_result = await runtime(
+            source_service,
+            authorizer=SecondAuthorizationInvalidates(source_store),
+        ).run(
+            definition(source_service),
+            UpdateRequest("record-1", "new", "second-auth"),
+            context(store=source_store, run_id="second-auth"),
+        )
+
+        self.assertIs(source_result.status, TerminalStatus.UNRESOLVED)
+        self.assertIs(source_result.unresolved[0].reason, UnresolvedReason.STALE_SOURCE)
+        self.assertEqual(source_service.calls, 0)
+
+        persistence_store = EvidenceStore(lambda: 0.0)
+
+        class InvalidateDuringPersistence:
+            def __init__(self) -> None:
+                self.history: list[WriteRecord] = []
+
+            async def record(self, value: WriteRecord) -> None:
+                self.history.append(value)
+                if value.state is ExecutionState.IN_FLIGHT:
+                    await asyncio.sleep(0)
+                    persistence_store.invalidate("record_snapshot")
+
+        persisted = InvalidateDuringPersistence()
+        persistence_service = FakeService()
+        persistence_result = await runtime(
+            persistence_service, intent_store=cast(IntentStore, persisted)
+        ).run(
+            definition(persistence_service),
+            UpdateRequest("record-1", "new", "persist-race"),
+            context(store=persistence_store, run_id="persist-race"),
+        )
+
+        self.assertIs(persistence_result.status, TerminalStatus.UNRESOLVED)
+        self.assertIs(
+            persistence_result.unresolved[0].reason, UnresolvedReason.STALE_SOURCE
+        )
+        self.assertEqual(persistence_service.calls, 0)
+        self.assertIs(persisted.history[-1].state, ExecutionState.FAILED_BEFORE_EFFECT)
+
+        now = [0.0]
+
+        class ExpiringAuthorizer(FakeAuthorizer):
+            def authorize(
+                self, proposal: Any, authority_context: Any
+            ) -> AuthorizationRecord:
+                self.proposals.append(proposal)
+                return AuthorizationRecord(
+                    proposal.digest, proposal.scope, True, 1.0, ("fixture",)
+                )
+
+        class ExpireDuringPersistence:
+            def __init__(self) -> None:
+                self.history: list[WriteRecord] = []
+
+            async def record(self, value: WriteRecord) -> None:
+                self.history.append(value)
+                if value.state is ExecutionState.IN_FLIGHT:
+                    await asyncio.sleep(0)
+                    now[0] = 1.0
+
+        expiring = ExpireDuringPersistence()
+        expiry_service = FakeService()
+        expiry_result = await runtime(
+            expiry_service,
+            authorizer=ExpiringAuthorizer(),
+            intent_store=cast(IntentStore, expiring),
+        ).run(
+            definition(expiry_service),
+            UpdateRequest("record-1", "new", "expiry-race"),
+            replace(
+                context(run_id="expiry-race"),
+                deadline=10.0,
+                clock=lambda: now[0],
+            ),
+        )
+
+        self.assertIs(expiry_result.status, TerminalStatus.UNRESOLVED)
+        self.assertIs(
+            expiry_result.unresolved[0].reason, UnresolvedReason.PERMISSION_DENIAL
+        )
+        self.assertEqual(expiry_service.calls, 0)
+        self.assertIs(expiring.history[-1].state, ExecutionState.FAILED_BEFORE_EFFECT)
+
     async def test_denied_authority_and_failed_acceptance_block_high_confidence(
         self,
     ) -> None:

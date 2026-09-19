@@ -25,6 +25,7 @@ from jev_frame import (
     ModelJudgment,
     NoulAnswer,
     NoulQuestion,
+    Observation,
     OperatingPolicy,
     ProviderAttempt,
     ProviderBatch,
@@ -34,7 +35,9 @@ from jev_frame import (
     Runtime,
     RuntimeConfigurationError,
     Subject,
+    TaskInputBinding,
     TerminalStatus,
+    Tool,
     UnresolvedReason,
     Usage,
     UsageCoverage,
@@ -263,6 +266,134 @@ def inactive_definition() -> AgentDefinition[BranchRequest, BranchResult]:
 
 
 class RuntimeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_completion_requires_current_findings_before_and_after_policy(
+        self,
+    ) -> None:
+        @dataclass(frozen=True, slots=True)
+        class Request:
+            text: str
+
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def derive(text: str) -> str:
+            started.set()
+            await release.wait()
+            return text.upper()
+
+        tool = Tool(
+            "derive",
+            "1.0.0",
+            "Derive a result from current evidence.",
+            derive,
+            {"text": TaskInputBinding(("text",))},
+            requires_evidence=("source",),
+            produces_evidence=("result",),
+        )
+        definition: AgentDefinition[Request, str] = AgentDefinition(
+            "stale-completion",
+            "1.0.0",
+            "Reject stale required findings.",
+            Request,
+            str,
+            CompletionContract(("result",), {}, "application-policy"),
+            OperatingPolicy("1.0.0", ("application-policy",)),
+            tools=(tool,),
+        )
+        store = EvidenceStore(lambda: 0.0)
+        store.add(
+            Observation(
+                id="source",
+                value="current",
+                source_id="fixture",
+                scope="fixture",
+                observed_at=0.0,
+            )
+        )
+        store.add(
+            Observation(
+                id="independent",
+                value="still current",
+                source_id="fixture",
+                scope="fixture",
+                observed_at=0.0,
+            )
+        )
+        runtime = Runtime(
+            ScriptedRuntimeProvider(),
+            model="unused",
+            completion_checks={"application-policy": accept_any},
+        )
+        task = asyncio.create_task(
+            runtime.run(
+                definition,
+                Request("secret"),
+                RunContext(
+                    "fixture",
+                    100.0,
+                    run_limits(provider_attempts=0, tool_attempts=1),
+                    clock=lambda: 0.0,
+                    evidence_session=store,
+                    run_id="stale-read",
+                ),
+            )
+        )
+        await started.wait()
+        store.invalidate("source")
+        release.set()
+
+        result = await task
+
+        self.assertIs(result.status, TerminalStatus.UNRESOLVED)
+        self.assertIs(result.unresolved[0].reason, UnresolvedReason.STALE_SOURCE)
+        self.assertFalse(store.is_current("result"))
+        self.assertTrue(store.is_current("independent"))
+
+        check_started = asyncio.Event()
+        check_release = asyncio.Event()
+
+        async def completion_check(value: Any, evidence: EvidenceStore) -> bool:
+            check_started.set()
+            await check_release.wait()
+            return True
+
+        second_store = EvidenceStore(lambda: 0.0)
+        second_store.add(
+            Observation(
+                id="source",
+                value="current",
+                source_id="fixture",
+                scope="fixture",
+                observed_at=0.0,
+            )
+        )
+        second_runtime = Runtime(
+            ScriptedRuntimeProvider(),
+            model="unused",
+            completion_checks={"application-policy": completion_check},
+        )
+        second = asyncio.create_task(
+            second_runtime.run(
+                definition,
+                Request("secret"),
+                RunContext(
+                    "fixture",
+                    100.0,
+                    run_limits(provider_attempts=0, tool_attempts=1),
+                    clock=lambda: 0.0,
+                    evidence_session=second_store,
+                    run_id="stale-policy",
+                ),
+            )
+        )
+        await check_started.wait()
+        second_store.invalidate("source")
+        check_release.set()
+        checked = await second
+
+        self.assertIs(checked.status, TerminalStatus.UNRESOLVED)
+        self.assertIs(checked.unresolved[0].reason, UnresolvedReason.STALE_SOURCE)
+
     async def test_independent_ready_judgments_share_no_answers(self) -> None:
         provider = ScriptedRuntimeProvider(delay=0.01)
         runtime = Runtime(
