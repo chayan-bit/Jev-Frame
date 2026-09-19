@@ -2,9 +2,9 @@
 
 A proposed Python framework for building Jev agents and integrating Jev decisions into existing LLM agents.
 
-**Status: JF-07 sanitized direct-decision events and inspection implemented; reusable packages are next.**
-The local package exposes strict definitions, run-local state, deterministic compilation and preview, the asynchronous official SDK adapter, direct `DecisionClient` operations, and default-safe decision inspection.
-Live provider compatibility remains unverified, and the package does not yet implement the agent scheduler or executable examples.
+**Status: JF-08 reusable decision packages and a generic document-evidence package implemented; the read-only scheduler is next.**
+The local package exposes strict definitions, run-local state, deterministic compilation and preview, the asynchronous official SDK adapter, direct decisions, default-safe inspection, and explicitly bound capability packages.
+Live provider compatibility remains unverified, and the package does not yet implement the agent scheduler.
 This is an independent project, not an official TypeSafe product.
 
 ## Local development
@@ -186,6 +186,13 @@ Definition and caller-input errors fail before dispatch, provider and response-v
 `Tool` wraps an ordinary callable with purpose, strict input and output types, bindings, evidence requirements and possible outputs, scope requirements, timeout, retry ownership, and an explicit `PURE`, `READ`, or `MUTATION` effect.
 `CandidateSet` is an immutable ordered snapshot with opaque keys, model-visible descriptions, execution-only values, source versions, retrieval parameters, coverage, and an optional bounded expansion reference.
 `CapabilityPackage` is an explicit versioned group of definitions and bindable application functions; identifier collisions fail instead of replacing registrations.
+Candidate providers now declare bindings for every typed function parameter, using the same task-input, host-context, constant, and default sources as other registered capabilities.
+Package IDs and versions are serialized into the compiled program and therefore affect its canonical digest even when inner definitions are unchanged.
+
+`bind_document_evidence_package` binds typed retrieval and read functions to one generic package containing document selection, exact document reading, exact text-field extraction, and claim assessment.
+Both host functions receive their catalogs through explicit arguments and context bindings, so the package definition contains neither application services nor credentials.
+The returned `DocumentEvidencePackage` exposes its small judgments and exact source locator for direct `DecisionClient` use and creates a `CompletionContract` only after the application supplies an acceptance-policy ID.
+The synthetic example binds the same package to two catalogs, while evaluator-only expected outcomes live in a separate example module that Jev-Frame never imports.
 
 `Runtime.run` is the asynchronous agent entry point.
 `Runtime.run_sync` delegates to it and raises a clear error when called from a running event loop.
@@ -524,13 +531,17 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `src/jev_frame/limits.py` | Atomic shared attempt, question, concurrency, deadline, reservation, and usage accounting |
 | `src/jev_frame/decisions.py` | Standalone evaluate, select, filter, assess, score, exact extraction, and portable callable operations |
 | `src/jev_frame/inspection.py` | Sanitized event records, result serialization, permitted inspection projections, and actionable diagnostics |
+| `src/jev_frame/packages.py` | Typed package binding and the generic document-evidence capability package |
 | `src/jev_frame/__init__.py` | Small public export surface |
+| `examples/document_evidence.py` | Public-import synthetic binding of one package to two catalogs |
+| `examples/document_evidence_cases.py` | Evaluator-only synthetic case descriptors excluded from runtime imports |
 | `tests/test_definitions.py` | Offline JF-02 behavior and failure checks |
 | `tests/test_state.py` | Offline JF-03 candidate and evidence-state checks |
 | `tests/test_compiler.py` | Offline JF-04 compiler, preview, dependency, and limit checks |
 | `tests/test_provider.py` | Offline JF-05 SDK wire, response, retry, ownership, cancellation, and usage checks |
 | `tests/test_decisions.py` | Offline JF-06 direct-operation, provenance, selection, extraction, and concurrent-admission checks |
 | `tests/test_inspection.py` | Offline JF-07 correlation, redaction, exact projection, diagnostic, sink-failure, and cancellation checks |
+| `tests/test_packages.py` | Offline JF-08 package reuse, binding validation, evaluator isolation, and version-identity checks |
 
 The [implementation plan for Sol](IMPLEMENTATION_PLAN.md) defines the frozen public contracts, implementation sequence, behavioral checks, and delivery gates for this design.
 JF-01 froze the names and interfaces above after read-only compatibility checks; later changes require an explicit synchronized contract revision.
@@ -540,6 +551,7 @@ JF-04 implements pure backward compilation and offline preview without retrieval
 JF-05 implements the official asynchronous SDK boundary and validates its wire behavior with mock transport only; no live provider request has been made.
 JF-06 implements the direct decision API and one shared in-memory ledger without adopting the agent scheduler or optional host frameworks.
 JF-07 implements the shared event and inspection vocabulary on the direct path without adding external telemetry, persistence, replay, or a web UI.
+JF-08 implements explicit package binding and the generic document-evidence package without automatic discovery, a registry service, or package-owned acceptance thresholds.
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
 The agent runtime, guarded execution, integrations, and extended capabilities remain assigned to later issues.
 The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.

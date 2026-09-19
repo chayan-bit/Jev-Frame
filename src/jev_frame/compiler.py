@@ -13,6 +13,7 @@ from .definitions import (
     AgentDefinition,
     Binding,
     CandidateBinding,
+    CandidateProvider,
     CandidateSet,
     ChoiceQuestion,
     ConstantBinding,
@@ -212,6 +213,7 @@ class CompiledProgram:
     questions: tuple[CompiledQuestion, ...]
     stages: tuple[EvaluationStage, ...]
     candidates: tuple[CandidatePreview, ...]
+    package_versions: tuple[tuple[str, str], ...] = ()
     diagnostics: tuple[CompilationDiagnostic, ...] = ()
 
     def _payload(self) -> dict[str, Any]:
@@ -222,6 +224,10 @@ class CompiledProgram:
             "questions": [question.to_dict() for question in self.questions],
             "stages": [stage.to_dict() for stage in self.stages],
             "candidates": [candidate.to_dict() for candidate in self.candidates],
+            "packages": [
+                {"id": package_id, "version": version}
+                for package_id, version in self.package_versions
+            ],
             "diagnostics": [item.to_dict() for item in self.diagnostics],
         }
 
@@ -407,6 +413,9 @@ class _Compiler:
             tuple(self.questions.values()),
             stages,
             tuple(self.candidates.values()),
+            tuple(
+                (package.id, package.version) for package in self.definition.packages
+            ),
             tuple(self.diagnostics),
         )
 
@@ -505,6 +514,10 @@ class _Compiler:
                 True,
                 options,
             )
+        bindings: list[CompiledBinding] = []
+        for parameter, binding in provider.bindings.items():
+            compiled, _ = self._binding(provider, parameter, binding)
+            bindings.append(compiled)
         self.candidates[provider_id] = preview
         self.nodes[node_id] = CompiledNode(
             node_id,
@@ -513,6 +526,7 @@ class _Compiler:
             provider.version,
             outputs=(provider_id,),
             effect=ToolEffect.READ.value,
+            bindings=tuple(bindings),
             unresolved=unresolved,
         )
         return node_id
@@ -714,9 +728,11 @@ class _Compiler:
         return node_id
 
     def _binding(
-        self, tool: Tool, parameter: str, binding: Binding
+        self, tool: Tool | CandidateProvider, parameter: str, binding: Binding
     ) -> tuple[CompiledBinding, list[str]]:
-        node_id = f"invoke:{tool.id}"
+        node_id = (
+            f"invoke:{tool.id}" if isinstance(tool, Tool) else f"retrieve:{tool.id}"
+        )
         dependencies: list[str] = []
         if isinstance(binding, TaskInputBinding):
             reference = ".".join(str(item) for item in binding.path)

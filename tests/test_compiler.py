@@ -42,7 +42,7 @@ class Result(BaseModel):
 
 
 def fixture_definition(calls: dict[str, int]) -> AgentDefinition[Request, Result]:
-    def documents(_: Request) -> CandidateSet:
+    def documents(statement: str) -> CandidateSet:
         calls["provider"] += 1
         raise AssertionError("preview must not retrieve")
 
@@ -94,7 +94,14 @@ def fixture_definition(calls: dict[str, int]) -> AgentDefinition[Request, Result
         OperatingPolicy("1.0.0", ("policy",)),
         tools=(reader, result),
         judgments=(selected,),
-        candidate_providers=(CandidateProvider("documents", "1.0.0", documents),),
+        candidate_providers=(
+            CandidateProvider(
+                "documents",
+                "1.0.0",
+                documents,
+                {"statement": TaskInputBinding(("statement",))},
+            ),
+        ),
     )
 
 
@@ -328,7 +335,7 @@ class CompilerTests(unittest.TestCase):
         class Updated(BaseModel):
             updated: str
 
-        def documents(_: Request) -> CandidateSet:
+        def documents(statement: str) -> CandidateSet:
             raise AssertionError("compile must not retrieve")
 
         def update(record: str, revision: str) -> str:
@@ -370,7 +377,14 @@ class CompilerTests(unittest.TestCase):
             OperatingPolicy("1.0.0", ("policy",)),
             tools=(tool,),
             judgments=(first, second),
-            candidate_providers=(CandidateProvider("documents", "1.0.0", documents),),
+            candidate_providers=(
+                CandidateProvider(
+                    "documents",
+                    "1.0.0",
+                    documents,
+                    {"statement": TaskInputBinding(("statement",))},
+                ),
+            ),
         )
 
         with self.assertRaises(CompilerError) as caught:

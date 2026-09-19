@@ -11,15 +11,15 @@ Project-local configuration may require the normal Codex project trust step befo
 
 ## Implementation checkpoint
 
-- Objective: complete JF-07 sanitized events, result inspection, actionable diagnostics, and checks T39/T58, then implement JF-08 reusable decision packages.
-- State: branch `codex/jev-frame-implementation`; JF-01 through JF-06 are closed, and JF-07 has a fully verified offline implementation awaiting commit and issue update.
+- Objective: complete JF-08 reusable decision packages, the generic document-evidence package, and check T57, then implement JF-09 shared read-only scheduling.
+- State: branch `codex/jev-frame-implementation`; JF-01 through JF-07 are closed, and JF-08 has a fully verified offline implementation awaiting commit and issue update.
 - Decisions: Python 3.11 or newer, local import `jev_frame`, `typesafe-sdk==0.7.0`, direct `pydantic>=2.12,<3`, and the public names and finite type subset in README `Frozen initial contract`.
-- Changed files: `src/jev_frame/inspection.py`, `src/jev_frame/decisions.py`, `src/jev_frame/definitions.py`, `src/jev_frame/state.py`, `src/jev_frame/__init__.py`, `tests/test_inspection.py`, README.md, IMPLEMENTATION_PLAN.md, ISSUES.md, and this checkpoint.
-- Checks: 50 tests passed on the project Python and isolated CPython 3.11 and 3.14 editable installs; Ruff check/format, mypy, compileall, `uv build`, an isolated CPython 3.11 wheel import, and `git diff --check` passed.
+- Changed files: `src/jev_frame/packages.py`, `src/jev_frame/definitions.py`, `src/jev_frame/compiler.py`, `src/jev_frame/__init__.py`, `examples/document_evidence.py`, `examples/document_evidence_cases.py`, `tests/test_packages.py`, the adjusted candidate-provider fixtures, README.md, IMPLEMENTATION_PLAN.md, ISSUES.md, and this checkpoint.
+- Checks: 55 tests passed on the project Python and isolated CPython 3.11 and 3.14 editable installs; the public example, Ruff check/format, mypy, compileall, `uv build`, an isolated CPython 3.11 wheel import, and `git diff --check` passed.
 - Failures: GitHub MCP loading was unavailable, so live issues are read and updated through the authenticated GitHub CLI; no implementation blocker remains.
-- Evidence: direct decisions emit correlated schema-versioned start, attempt, completion, failure and cancellation events; attempt IDs and usage coverage survive round trips; default inspection resolves recorded provenance while redacting evidence, questions, candidate contents, arbitrary exception text, dependency values and authorization values; explicit permitted projection reveals only requested exact fields; accepted bindings and policy evidence are verified; diagnostics separate definition, service and semantic outcomes and name corrective inputs.
-- Remaining gates: direct-decision inspection is locally verified only; scheduler-wide run inspection, fixture capture/replay, durable persistence, live provider compatibility, consequential effects, publication, deployment, and licensing remain assigned or unauthorized as documented.
-- Next action: commit JF-07, post evidence, close #8, update tracker #1, then implement JF-08 reusable decision packages and generic evidence package.
+- Evidence: one generic package binds two typed retrieval and read implementations without code changes; candidate-provider and tool bindings keep catalogs in host context; package parts run through direct selection, assessment and exact-source extraction; missing functions, incompatible annotations and duplicate capability IDs fail before execution; package-only version changes alter the compiled digest; evaluator cases remain outside runtime definitions and provider inputs.
+- Remaining gates: the read-only scheduler is not implemented, large-collection evidence processing remains JF-18, adapter demonstrations remain JF-12/JF-13, and live provider compatibility, publication, deployment and licensing remain unauthorized.
+- Next action: commit JF-08, post evidence, close #9, update tracker #1, then implement JF-09 shared read-only scheduling and completion.
 
 Use current official TypeSafe documentation when work resumes.
 Do not copy private project history or local credentials into this repository.

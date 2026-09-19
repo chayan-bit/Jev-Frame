@@ -100,7 +100,7 @@ def _supported(annotation: Any, seen: set[type[Any]] | None = None) -> bool:
         )
     if origin is list:
         return len(arguments) == 1 and _supported(arguments[0], seen)
-    if origin is dict:
+    if origin in {dict, Mapping}:
         return (
             len(arguments) == 2
             and arguments[0] is str
@@ -640,12 +640,63 @@ class CandidateProvider:
     id: str
     version: str
     function: Callable[..., CandidateSet] = field(repr=False, compare=False)
+    bindings: Mapping[str, Binding] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         _text(self.id, "candidate provider id")
         _version(self.version)
         if not callable(self.function):
             raise DefinitionError("candidate provider must be callable")
+        if not isinstance(self.bindings, Mapping):
+            raise BindingError("candidate provider bindings must be a mapping")
+        signature = inspect.signature(self.function)
+        try:
+            hints = get_type_hints(self.function, include_extras=True)
+        except (NameError, TypeError) as error:
+            raise UnsupportedTypeError(
+                f"cannot resolve annotations for candidate provider {self.id}"
+            ) from error
+        parameters = signature.parameters
+        if set(parameters) != set(self.bindings):
+            raise BindingError(
+                f"candidate provider {self.id} bindings must match its parameters"
+            )
+        for name, parameter in parameters.items():
+            if parameter.kind in {
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.VAR_POSITIONAL,
+                inspect.Parameter.VAR_KEYWORD,
+            }:
+                raise DefinitionError(
+                    f"unsupported parameter {name} on candidate provider {self.id}"
+                )
+            annotation = hints.get(name)
+            if annotation is None:
+                raise UnsupportedTypeError(
+                    f"missing annotation for candidate provider {self.id}.{name}"
+                )
+            ensure_supported_type(annotation, f"candidate provider {self.id}.{name}")
+            binding = self.bindings[name]
+            if not isinstance(
+                binding,
+                (TaskInputBinding, HostContextBinding, ConstantBinding, DefaultBinding),
+            ):
+                raise BindingError(
+                    f"candidate provider {self.id}.{name} has an unsupported binding"
+                )
+            if isinstance(binding, ConstantBinding):
+                validate_value(annotation, binding.value, f"{self.id}.{name} constant")
+            elif isinstance(binding, DefaultBinding):
+                if parameter.default is inspect.Parameter.empty:
+                    raise BindingError(f"{self.id}.{name} has no default")
+                validate_value(
+                    annotation, parameter.default, f"{self.id}.{name} default"
+                )
+        if hints.get("return") is not CandidateSet:
+            raise UnsupportedTypeError(
+                f"candidate provider {self.id} must return CandidateSet"
+            )
+        object.__setattr__(self, "bindings", MappingProxyType(dict(self.bindings)))
 
 
 @dataclass(frozen=True, slots=True)

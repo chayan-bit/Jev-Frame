@@ -31,7 +31,8 @@ The ten additions in Section 5.9 are included in the initial target and tracked 
 - JF-05 adds the official asynchronous SDK adapter, framework-owned bounded retries, strict primitive response validation, request and attempt metadata, and explicit unknown usage.
 - JF-06 adds standalone decision operations, injected evidence sessions, exact source extraction, portable callables, and the shared atomic admission and usage ledger.
 - JF-07 adds schema-versioned sanitized events, allowlisted result serialization, permitted exact inspection, omitted-field manifests, and actionable public diagnostics.
-- There is no agent scheduler, executable example, CI configuration, or selected license yet.
+- JF-08 adds typed candidate-provider bindings, package configuration identity, a generic document-evidence package, public synthetic authoring examples, and evaluator-separated regression descriptors.
+- There is no agent scheduler, CI configuration, or selected license yet.
 - Generated environments and local build artifacts remain ignored.
 - JF-01 freezes the initial public names and signatures, the local `jev_frame` import name, run-local persistence, and host-owned acceptance thresholds.
 - `.codex/config.toml` currently contains a comment and does not enforce a model selection; the continuation note now reflects this.
@@ -864,6 +865,15 @@ Default decision serialization and inspection expose actual primitive answers, p
 Exact evidence, questions, candidate contents and unresolved detail require an explicit permitted projection and remain constrained to the recorded evidence store and matching candidate digest.
 Public diagnostics distinguish definition, service and semantic failures and identify the responsible definition, node, source path, corrective action and optional capability without fabricating model rationale.
 Focused checks cover T39 and the completed-decision portion of T58 with synthetic data, including hostile exception, dependency and authorization secrets, sink failure, exact projection, provenance resolution, accepted policy evidence, event correlation and cancellation.
+
+**JF-08 result:** implemented in `src/jev_frame/packages.py` using the existing definitions, compiler, direct decisions and exact-source state machinery.
+Candidate providers now require an explicit typed binding for every parameter, and the compiler records those sources without invoking the provider.
+Compiled programs retain package IDs and versions in their canonical configuration, so a package-only version change alters the digest without hashing arbitrary function closures.
+`bind_document_evidence_package` validates stateless typed retrieval and read functions before execution and returns ordinary tools, judgments and a candidate provider inside the existing `CapabilityPackage`.
+The generic package composes selection, catalog-backed reading, exact text-field extraction, claim assessment, evidence requirements and result requirements, while its completion helper requires an application-owned acceptance-policy ID.
+Two synthetic applications bind different functions and catalogs and use the package judgments and exact-source locator directly without package or runtime changes.
+Public authoring examples use only `jev_frame` imports, and evaluator-only expected outcomes remain in a separate module that is absent from runtime definitions and provider inputs.
+Focused checks cover T57, missing and incompatible functions, duplicate capability IDs, version-only digest changes, direct operations and evaluator-label isolation without invoking live services.
 
 ### Phase 5 — Read-only vertical slice
 

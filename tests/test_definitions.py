@@ -56,7 +56,7 @@ def read_document(document_id: str, limit: int = 10) -> str:
     return document_id[:limit]
 
 
-def catalog(_: Request) -> CandidateSet:
+def catalog(statement: str) -> CandidateSet:
     return CandidateSet(
         id="documents",
         version="1.0.0",
@@ -106,7 +106,14 @@ class DefinitionTests(unittest.TestCase):
             policy=OperatingPolicy("1.0.0", ("document-policy",)),
             tools=(tool,),
             judgments=(judgment,),
-            candidate_providers=(CandidateProvider("documents", "1.0.0", catalog),),
+            candidate_providers=(
+                CandidateProvider(
+                    "documents",
+                    "1.0.0",
+                    catalog,
+                    {"statement": TaskInputBinding(("statement",))},
+                ),
+            ),
         )
 
         self.assertEqual(definition.id, "document_support")
