@@ -11,15 +11,15 @@ Project-local configuration may require the normal Codex project trust step befo
 
 ## Implementation checkpoint
 
-- Objective: complete JF-12 optional LangChain and LangGraph integration and checks T45 through T48, T52, T54 and T55, then continue with the next live unblocked issue.
-- State: branch `codex/jev-frame-implementation`; JF-01 through JF-11 are closed, and JF-12 is fully verified locally pending commit and issue update.
-- Decisions: pin the optional `langchain` extra to LangChain 1.4.2 and LangGraph 1.2.11, keep the core import independent, inject host-only state through `ToolRuntime`, leave dispatch with `ToolNode`, and bind required checkpoint output to a freshly reconstructed action digest.
-- Changed files: `pyproject.toml`, `uv.lock`, `src/jev_frame/integrations/`, `tests/test_langchain_integration.py`, `examples/langchain_decision.py`, README.md, IMPLEMENTATION_PLAN.md, ISSUES.md, and this checkpoint.
-- Checks: 80 tests pass with the optional adapter on isolated CPython 3.11 and 3.14; core-only imports without LangChain pass on both versions; the public example, Ruff format and checks, mypy over source and adapter surfaces, compileall, build, wheel metadata and isolated wheel import pass.
-- Failures: a locally imported `ToolRuntime` annotation was initially invisible to `ToolNode.get_type_hints`; binding the concrete optional injection marker on the wrapper fixed the public-interface test.
-- Evidence: one tool call produces one provider attempt and a full `DecisionResult` artifact; optional routing performs no Jev call; forged scope and provider failures stay typed; cancellation reaches the provider; changed arguments replace an older checkpoint; checkpoint rejection raises before a following action node.
-- Remaining gates: no live model, hosted LangGraph service, application authorization, business mutation, publication, deployment or licensing was exercised or authorized.
-- Next action: inspect the staged diff; commit JF-12; update and close #13 and tracker #1; then select the next live unblocked issue.
+- Objective: complete JF-13 optional Pydantic AI integration and checks T45 through T48 and T52 through T55, then continue with the next live unblocked issue.
+- State: branch `codex/jev-frame-implementation`; JF-01 through JF-12 are closed, and JF-13 is implemented and verified locally pending commit and issue update.
+- Decisions: pin `pydantic-ai-slim[typesafe]==2.46.0`, keep host state in `RunContext.deps`, preserve full decisions in `ToolReturn.metadata`, place required checks inside a `ToolOutput` function, and reuse native `TypeSafeModel` only with explicit semantic and usage coverage.
+- Changed files: `pyproject.toml`, `uv.lock`, `src/jev_frame/integrations/pydantic_ai.py`, `tests/test_pydantic_ai_integration.py`, `examples/pydantic_ai_decision.py`, README.md, IMPLEMENTATION_PLAN.md, ISSUES.md, and this checkpoint.
+- Checks: seven focused adapter and native conformance tests and the public example pass; all 87 tests pass with all extras on isolated CPython 3.11 and 3.14; core-only imports, Ruff, mypy, compileall, build, wheel metadata and wheel import checks pass.
+- Failures: the scripted SDK double initially lacked two current optional request keywords, and native direct-output responses did not carry a real request count; the double now matches the public call and usage remains partial rather than inferred complete.
+- Evidence: advisory Noul and Score tools retain complete canonical artifacts, optional routing skips Jev, forged scope and provider failures remain typed, cancellation reaches the provider, guarded output functions recheck changed drafts and reject failures, native Noul remains unrounded, native Score keeps its fractional metadata, and fallback usage remains unknown.
+- Remaining gates: no live TypeSafe or fallback model, application authorization, business mutation, publication, deployment or licensing was exercised or authorized.
+- Next action: inspect the staged diff, commit JF-13, update and close #14 and tracker #1, then select the next live unblocked issue.
 
 Use current official TypeSafe documentation when work resumes.
 Do not copy private project history or local credentials into this repository.

@@ -90,7 +90,7 @@ Later issues implement guarded execution and the extended entry points shown bel
 | TypeSafe SDK | Use the official `typesafe-sdk==0.7.0` transport and response models. | PyPI metadata declares Python 3.10 or newer; local isolated resolution used Pydantic 2.13.5. |
 | Boundary validation | Declare Pydantic directly as `pydantic>=2.12,<3` and use strict `TypeAdapter` validation. | SDK 0.7.0 itself requires Pydantic 2.12 or newer after replacing `msgspec`. |
 | LangChain and LangGraph | Optional extra `jev-frame[langchain]`; target the public tool, `ToolRuntime`, node, and agent interfaces in LangChain 1.4.2 and LangGraph 1.2.11. | Offline conformance invokes a real `ToolNode` and `StateGraph`, keeps host context out of the model-visible schema, preserves the full result artifact, and leaves execution ownership with the host. |
-| Pydantic AI | Keep optional; target Pydantic AI 2.46.0 and reuse `TypeSafeModel` where its translated metadata is sufficient. | Current native support exposes confidence, probabilities, scores, returned model identity, and Jev request count in provider details, with the limitations below. |
+| Pydantic AI | Optional extra `jev-frame[pydantic-ai]`; target Pydantic AI Slim 2.46.0 with its TypeSafe extra and reuse `TypeSafeModel` where its translated metadata is sufficient. | Offline conformance exercises `FunctionModel`, `Tool`, `ToolReturn`, `ToolOutput`, and a scripted native `TypeSafeModel` without credentials. |
 
 The core records the requested and returned TypeSafe model names separately.
 Moving aliases such as `jev-latest` are allowed for experiments but are not reusable evidence across provider calls unless the returned version is pinned and recorded.
@@ -349,6 +349,17 @@ For a controlled action path, `required_checkpoint_node` rebuilds the current `A
 Changed arguments are therefore rechecked, a supplied older checkpoint is ignored, and rejection raises `RequiredCheckpointRejected` before a following action node can run.
 The host must place that node on every required route; the adapter does not claim to intercept arbitrary graph edges.
 `examples/langchain_decision.py` is a credential-free `StateGraph` and `ToolNode` example using an offline provider double.
+
+Install the second optional adapter with `pip install 'jev-frame[pydantic-ai]'`.
+`jev_frame.integrations.pydantic_ai.decision_tool` wraps the same direct decision callable with Pydantic AI's public `Tool.from_schema` interface and then performs strict Pydantic validation because that low-level constructor intentionally skips argument validation.
+`PydanticAIDecisionContext` travels through `RunContext.deps`, so identity, scope, evidence, and provider configuration do not appear in the model-visible schema.
+The model receives the allowlisted serialized decision, while the application's `ToolReturnPart.metadata` retains the complete `DecisionResult`.
+`required_checkpoint_output` is a `ToolOutput` function that rebuilds and checks the current action proposal inside the output-processing path and returns a digest-bound `CheckpointedOutput`.
+Ordinary output functions are not guarded by function-tool hooks and are not covered by that claim; an application must use this guarded output or its own output-processing gate on every required route.
+Native `TypeSafeModel` remains useful for compatible Pydantic outputs: a bounded probability `float` preserves Noul without rounding, while an `IntEnum` rubric returns the nearest level and keeps the fractional score and distribution in provider details.
+The official SDK-backed `DecisionClient` remains the canonical evidence path when the application needs Jev-Frame primitive records, source provenance, or shared admission.
+`inspect_native_typesafe_usage` reports native usage as complete only when the response proves both token values and the real TypeSafe request count, partial for an attributable native response without that count, and unknown for a fallback response that omits the earlier Jev attempt.
+`examples/pydantic_ai_decision.py` is a credential-free `FunctionModel` example with a deterministic Jev provider double.
 
 Only one component owns each loop, retry policy, and tool dispatch.
 The host remains responsible for operations it runs outside Jev-Frame, including their budgets and permissions.

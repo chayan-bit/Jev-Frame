@@ -1266,3 +1266,11 @@ At every substantive stopping point, update a compact continuation entry in `.co
 - Verification: offline tests invoke real `StateGraph` and `ToolNode` interfaces, preserve the full `DecisionResult` artifact, reject forged scope and provider failure, propagate cancellation, count one provider attempt, permit an omitted optional tool, reject a failed checkpoint, and invalidate an older checkpoint after changed arguments.
 - Core boundary: `jev_frame` imports without either optional framework, and the adapter is loaded only from `jev_frame.integrations.langchain`.
 - Remaining gates: no live model, hosted LangGraph service, application authorization, business mutation, publication, or deployment was exercised or authorized.
+
+### JF-13 Pydantic AI integration checkpoint — 2026-09-19
+
+- Objective: expose direct Jev decisions and exact-output checkpoints through Pydantic AI 2.46.0 while using its native TypeSafe support only where the translated semantics remain observable.
+- Decisions: the optional `pydantic-ai` extra uses `pydantic-ai-slim[typesafe]`, host state stays in `RunContext.deps`, compact tool results use `ToolReturn.return_value`, complete Jev records use private `ToolReturn.metadata`, and required output functions perform their own exact-action checkpoint instead of relying on function-tool hooks.
+- Native reuse: scripted `TypeSafeModel` conformance preserves a bounded Noul probability, returns the nearest rubric level while retaining the fractional score and distribution, and leaves usage partial or unknown when the real Jev request count is absent.
+- Verification: offline tests invoke real `Agent`, `FunctionModel`, `Tool`, `ToolOutput`, and `TypeSafeModel` interfaces; cover optional skip, Noul and Score records, hidden scope, provider failure, cancellation, changed output, rejected checkpoint, special output-tool placement, and fallback usage omission.
+- Remaining gates: no live TypeSafe or fallback model, application authorization, business mutation, publication, or deployment was exercised or authorized.
