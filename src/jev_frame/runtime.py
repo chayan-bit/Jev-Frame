@@ -1114,6 +1114,12 @@ class Runtime:
             try:
                 value = tool.mutation.reconcile(proposal.operation_id)
                 receipt = self._receipt(await maybe_await(value), proposal.operation_id)
+            except asyncio.CancelledError:
+                unknown = WriteRecord(
+                    proposal, ExecutionState.OUTCOME_UNKNOWN, authorization
+                )
+                self._record_execution(unknown, dependencies, context, state)
+                raise
             except Exception:  # noqa: BLE001 - reconciliation failures stay unknown
                 receipt = None
         if receipt is not None and receipt.state is ExecutionState.SUCCEEDED:
@@ -1137,6 +1143,16 @@ class Runtime:
                 ) from error
             self._record_execution(succeeded, dependencies, context, state)
             return receipt
+        if (
+            receipt is not None
+            and receipt.state is ExecutionState.FAILED_BEFORE_EFFECT
+        ):
+            failed = WriteRecord(
+                proposal, ExecutionState.FAILED_BEFORE_EFFECT, authorization, receipt
+            )
+            await self._persist_write(tool, failed)
+            self._record_execution(failed, dependencies, context, state)
+            raise _ToolFailure("mutation failed before effect")
         unknown = WriteRecord(
             proposal,
             ExecutionState.OUTCOME_UNKNOWN,

@@ -16,6 +16,7 @@ from jev_frame import (
     EvidenceSelector,
     EvidenceStore,
     ExecutionReceipt,
+    ExecutionReference,
     ExecutionState,
     Judgment,
     JudgmentBinding,
@@ -277,6 +278,137 @@ def context(*, store: EvidenceStore | None = None, run_id: str = "write") -> Run
 
 
 class PolicyTests(unittest.IsolatedAsyncioTestCase):
+    async def test_reconciliation_cancellation_keeps_one_local_unknown_effect(
+        self,
+    ) -> None:
+        class BlockingReconciliation(FakeService):
+            def __init__(self) -> None:
+                super().__init__("lost")
+                self.reconcile_started = asyncio.Event()
+
+            async def reconcile(  # type: ignore[override]
+                self, operation_id: str
+            ) -> ExecutionReceipt:
+                self.reconcile_started.set()
+                await asyncio.Event().wait()
+                raise AssertionError("unreachable")
+
+        for durable in (True, False):
+            with self.subTest(durable=durable):
+                service = BlockingReconciliation()
+                store = EvidenceStore(lambda: 0.0)
+                intents = IntentStore() if durable else None
+                guarded = Runtime(
+                    JudgmentProvider(),
+                    model="scripted",
+                    completion_checks={"completion": lambda value, evidence: True},
+                    acceptance_policies={
+                        "semantic": AcceptancePolicy(
+                            "semantic",
+                            "1.0.0",
+                            lambda value: AcceptanceStatus.ACCEPT,
+                        )
+                    },
+                    authorizer=FakeAuthorizer(),
+                    intent_store=intents,
+                )
+                configured = definition(service)
+                if not durable:
+                    read, update = configured.tools
+                    assert update.mutation is not None
+                    update = replace(
+                        update,
+                        mutation=replace(
+                            update.mutation, durable_intent_required=False
+                        ),
+                    )
+                    configured = replace(configured, tools=(read, update))
+                task = asyncio.create_task(
+                    guarded.run(
+                        configured,
+                        UpdateRequest("record-1", "new", f"cancel-{durable}"),
+                        context(store=store, run_id=f"cancel-reconcile-{durable}"),
+                    )
+                )
+                await service.reconcile_started.wait()
+                task.cancel()
+                with self.assertRaises(asyncio.CancelledError):
+                    await task
+
+                references = tuple(
+                    record
+                    for record in store.records
+                    if isinstance(record, ExecutionReference)
+                )
+                self.assertEqual(service.calls, 1)
+                self.assertEqual(service.effects, 1)
+                self.assertEqual(len(references), 1)
+                self.assertIs(references[0].state, ExecutionState.OUTCOME_UNKNOWN)
+                self.assertIs(
+                    guarded.result_for(f"cancel-reconcile-{durable}").status,  # type: ignore[union-attr]
+                    TerminalStatus.CANCELLED,
+                )
+                if intents is not None:
+                    self.assertIs(
+                        intents.history[-1].state, ExecutionState.OUTCOME_UNKNOWN
+                    )
+
+    async def test_reconciliation_distinguishes_no_effect_and_invalid_receipts(
+        self,
+    ) -> None:
+        class DefiniteNoEffect(FakeService):
+            async def update(
+                self,
+                record_id: str,
+                value: str,
+                expected_version: str,
+                idempotency_key: str,
+                approval: NoulAnswer,
+            ) -> ExecutionReceipt:
+                self.calls += 1
+                raise TimeoutError("reply lost before effect")
+
+            def reconcile(self, operation_id: str) -> ExecutionReceipt:
+                return ExecutionReceipt(
+                    operation_id, ExecutionState.FAILED_BEFORE_EFFECT
+                )
+
+        service = DefiniteNoEffect()
+        store = EvidenceStore(lambda: 0.0)
+        intents = IntentStore()
+        result = await runtime(service, intent_store=intents).run(
+            definition(service),
+            UpdateRequest("record-1", "new", "no-effect"),
+            context(store=store, run_id="no-effect"),
+        )
+
+        self.assertIs(result.status, TerminalStatus.FAILED)
+        self.assertEqual(service.calls, 1)
+        self.assertEqual(service.effects, 0)
+        self.assertIs(intents.history[-1].state, ExecutionState.FAILED_BEFORE_EFFECT)
+        reference = next(
+            record
+            for record in store.records
+            if isinstance(record, ExecutionReference)
+        )
+        self.assertIs(reference.state, ExecutionState.FAILED_BEFORE_EFFECT)
+
+        class MismatchedReceipt(DefiniteNoEffect):
+            def reconcile(self, operation_id: str) -> ExecutionReceipt:
+                return ExecutionReceipt("another-operation", ExecutionState.SUCCEEDED)
+
+        mismatched = MismatchedReceipt()
+        invalid = await runtime(mismatched).run(
+            definition(mismatched),
+            UpdateRequest("record-1", "new", "mismatch"),
+            context(run_id="mismatch"),
+        )
+        self.assertIs(invalid.status, TerminalStatus.UNRESOLVED)
+        self.assertIs(
+            invalid.unresolved[0].reason, UnresolvedReason.UNKNOWN_WRITE_OUTCOME
+        )
+        self.assertEqual(mismatched.calls, 1)
+
     async def test_final_mutation_freshness_check_follows_awaited_gates(self) -> None:
         class SecondAuthorizationInvalidates(FakeAuthorizer):
             def __init__(self, store: EvidenceStore) -> None:
