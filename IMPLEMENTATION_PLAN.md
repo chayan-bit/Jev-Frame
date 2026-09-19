@@ -1258,3 +1258,11 @@ At every substantive stopping point, update a compact continuation entry in `.co
 - Contract coverage: README walks Scenarios A-L and specifies direct decisions, agent runs, planner variants, bindings, evidence, policy, authorization, events, fixtures, splits, and failure behavior.
 - Remaining gates: package/runtime implementation starts at JF-02, live provider compatibility requires separate authorization, licensing remains undecided, and no publication is authorized.
 - Next action: create the minimal package manifest and typed definition boundaries for JF-02, then prove T01 and T02 offline.
+
+### JF-12 LangChain and LangGraph integration checkpoint — 2026-09-19
+
+- Objective: expose direct Jev decisions and exact-action checkpoints through the recorded LangChain 1.4.2 and LangGraph 1.2.11 public interfaces without adding another scheduler.
+- Decisions: the optional `langchain` extra owns both pinned host dependencies, `ToolRuntime` carries non-model host context, `ToolNode` remains the dispatcher, and the required node always reconstructs and checks the current action proposal.
+- Verification: offline tests invoke real `StateGraph` and `ToolNode` interfaces, preserve the full `DecisionResult` artifact, reject forged scope and provider failure, propagate cancellation, count one provider attempt, permit an omitted optional tool, reject a failed checkpoint, and invalidate an older checkpoint after changed arguments.
+- Core boundary: `jev_frame` imports without either optional framework, and the adapter is loaded only from `jev_frame.integrations.langchain`.
+- Remaining gates: no live model, hosted LangGraph service, application authorization, business mutation, publication, or deployment was exercised or authorized.

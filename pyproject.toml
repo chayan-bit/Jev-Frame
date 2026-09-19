@@ -13,5 +13,11 @@ dependencies = [
   "typesafe-sdk==0.7.0",
 ]
 
+[project.optional-dependencies]
+langchain = [
+  "langchain==1.4.2",
+  "langgraph==1.2.11",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]

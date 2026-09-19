@@ -89,7 +89,7 @@ Later issues implement guarded execution and the extended entry points shown bel
 | Python | Support Python 3.11 and newer; the delivery issue records the exact tested matrix. | `typesafe-sdk==0.7.0` imported and its question models instantiated on CPython 3.11.15 and 3.14.6. |
 | TypeSafe SDK | Use the official `typesafe-sdk==0.7.0` transport and response models. | PyPI metadata declares Python 3.10 or newer; local isolated resolution used Pydantic 2.13.5. |
 | Boundary validation | Declare Pydantic directly as `pydantic>=2.12,<3` and use strict `TypeAdapter` validation. | SDK 0.7.0 itself requires Pydantic 2.12 or newer after replacing `msgspec`. |
-| LangChain and LangGraph | Keep optional; target the public tool, `ToolRuntime`, node, and agent interfaces current in LangChain 1.4.2 and LangGraph 1.2.11. | Current documentation keeps immutable invocation context out of the model-visible tool schema and assigns tool execution to the host loop or `ToolNode`. |
+| LangChain and LangGraph | Optional extra `jev-frame[langchain]`; target the public tool, `ToolRuntime`, node, and agent interfaces in LangChain 1.4.2 and LangGraph 1.2.11. | Offline conformance invokes a real `ToolNode` and `StateGraph`, keeps host context out of the model-visible schema, preserves the full result artifact, and leaves execution ownership with the host. |
 | Pydantic AI | Keep optional; target Pydantic AI 2.46.0 and reuse `TypeSafeModel` where its translated metadata is sufficient. | Current native support exposes confidence, probabilities, scores, returned model identity, and Jev request count in provider details, with the limitations below. |
 
 The core records the requested and returned TypeSafe model names separately.
@@ -338,6 +338,17 @@ Jev-Frame's additional value is reusable candidate binding, evidence provenance,
 Optional adapters should translate schemas, context, results, and events through public interfaces while preserving the host's memory, streaming, persistence, and human-intervention mechanisms.
 The core must import and operate without either reference framework installed.
 Other frameworks can integrate through the callable contract; native support is claimed only after version-specific conformance checks.
+
+Install the first optional adapter with `pip install 'jev-frame[langchain]'`.
+`jev_frame.integrations.langchain.decision_tool` wraps a `DecisionClient` callable as a real LangChain structured tool without creating an `AgentDefinition` or Jev scheduler.
+The host supplies `LangChainDecisionContext` through `ToolRuntime`, so scope, evidence, provider configuration, and the input factory are not model-editable tool arguments.
+The tool returns the allowlisted serialized decision as message content and the complete `DecisionResult` as the application-visible artifact.
+LangGraph's `ToolNode` remains the sole dispatcher, and Jev-Frame performs only its existing provider admission and accounting, so the adapter adds no retry loop.
+An optional tool can be omitted by host routing without any Jev call.
+For a controlled action path, `required_checkpoint_node` rebuilds the current `ActionProposal`, evaluates the existing `RequiredCheckpoint`, and returns only a `CheckpointRecord` bound to that exact digest.
+Changed arguments are therefore rechecked, a supplied older checkpoint is ignored, and rejection raises `RequiredCheckpointRejected` before a following action node can run.
+The host must place that node on every required route; the adapter does not claim to intercept arbitrary graph edges.
+`examples/langchain_decision.py` is a credential-free `StateGraph` and `ToolNode` example using an offline provider double.
 
 Only one component owns each loop, retry policy, and tool dispatch.
 The host remains responsible for operations it runs outside Jev-Frame, including their budgets and permissions.
