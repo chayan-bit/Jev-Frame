@@ -56,10 +56,12 @@ class LedgerSnapshot:
     provider_attempts: int
     submitted_questions: int
     tool_attempts: int
+    investigation_steps: int
     writes: int
     active_operations: int
     attempt_ids: tuple[str, ...]
     tool_attempt_ids: tuple[str, ...]
+    investigation_ids: tuple[str, ...]
     write_ids: tuple[str, ...]
     measurements: tuple[UsageMeasurement, ...]
 
@@ -74,6 +76,7 @@ class UsageLedger:
         self._lock = asyncio.Lock()
         self._attempt_questions: dict[str, int] = {}
         self._tool_attempts: set[str] = set()
+        self._investigations: set[str] = set()
         self._writes: set[str] = set()
         self._active: set[str] = set()
         self._operations: set[str] = set()
@@ -186,6 +189,23 @@ class UsageLedger:
                 raise BudgetExhaustedError("write limit exhausted")
             self._writes.add(operation_id)
 
+    async def admit_investigation(
+        self,
+        investigation_id: str,
+        *,
+        deadline: float,
+        clock: Callable[[], float],
+    ) -> None:
+        if type(investigation_id) is not str or not investigation_id:
+            raise ValueError("investigation id must be a non-empty string")
+        self._check_deadline(deadline, clock)
+        async with self._lock:
+            if investigation_id in self._investigations:
+                return
+            if len(self._investigations) >= self.limits.investigation_steps:
+                raise BudgetExhaustedError("investigation step limit exhausted")
+            self._investigations.add(investigation_id)
+
     async def record_estimate(
         self,
         operation_id: str,
@@ -250,10 +270,12 @@ class UsageLedger:
                 len(self._attempt_questions),
                 sum(self._attempt_questions.values()),
                 len(self._tool_attempts),
+                len(self._investigations),
                 len(self._writes),
                 len(self._active),
                 tuple(self._attempt_questions),
                 tuple(self._tool_attempts),
+                tuple(self._investigations),
                 tuple(self._writes),
                 tuple(self._measurements.values()),
             )

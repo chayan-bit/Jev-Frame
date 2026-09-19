@@ -1080,6 +1080,36 @@ class Unresolved:
     needed: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class ClarificationRequest:
+    id: str
+    subjects: tuple[str, ...]
+    missing_path: tuple[str | int, ...]
+    answer_type: Any = field(repr=False, compare=False)
+    prompt: str
+    definition_id: str | None = None
+
+    def __post_init__(self) -> None:
+        _text(self.id, "clarification id")
+        if not self.subjects or any(
+            type(subject) is not str or not subject for subject in self.subjects
+        ):
+            raise DefinitionError("clarification subjects must be non-empty strings")
+        if not self.missing_path or any(
+            type(part) not in {str, int} or part == "" for part in self.missing_path
+        ):
+            raise DefinitionError("clarification path must be non-empty")
+        ensure_supported_type(self.answer_type, f"clarification {self.id} answer")
+        _text(self.prompt, "clarification prompt")
+        if self.definition_id is not None:
+            _text(self.definition_id, "clarification definition id")
+
+    def validate_answer(self, value: Any) -> Any:
+        return validate_value(
+            self.answer_type, value, f"clarification {self.id} answer"
+        )
+
+
 ResultT = TypeVar("ResultT")
 
 
@@ -1090,6 +1120,7 @@ class RunResult(Generic[ResultT]):
     partial_findings: tuple[Any, ...] = ()
     evidence_refs: tuple[str, ...] = ()
     unresolved: tuple[Unresolved, ...] = ()
+    clarifications: tuple[ClarificationRequest, ...] = ()
     trace: tuple[Mapping[str, Any], ...] = ()
     usage: Usage = field(default_factory=Usage)
     failure: str | None = None

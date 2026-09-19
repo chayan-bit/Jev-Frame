@@ -43,6 +43,7 @@ from .definitions import (  # noqa: F401
     ChoiceAnswer,
     ChoiceOption,
     ChoiceQuestion,
+    ClarificationRequest,
     CompletionContract,
     ConstantBinding,
     Coverage,
@@ -108,6 +109,12 @@ from .inspection import (  # noqa: F401
     diagnostic_for_unresolved,
     inspect_decision,
     serialize_decision_result,
+)
+from .investigation import (  # noqa: F401
+    InvestigationAction,
+    InvestigationCallable,
+    InvestigationNeed,
+    InvestigationResult,
 )
 from .limits import (  # noqa: F401
     AdmissionError,

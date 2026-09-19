@@ -11,15 +11,15 @@ Project-local configuration may require the normal Codex project trust step befo
 
 ## Implementation checkpoint
 
-- Objective: complete JF-10 semantic acceptance, exact-action authorization, reconciliation, and checks T24 through T30 and T48, then continue with the next unblocked issue.
-- State: branch `codex/jev-frame-implementation`; JF-01 through JF-09 are closed, and JF-10 has a fully verified offline implementation awaiting commit and issue update.
+- Objective: complete JF-11 bounded investigation, selective expansion, typed clarification, and checks T04, T31, T32 and T64, then continue with the next live unblocked issue.
+- State: branch `codex/jev-frame-implementation`; JF-01 through JF-10 are closed, and JF-11 has a fully verified offline implementation awaiting commit and issue update.
 - Decisions: Python 3.11 or newer, local import `jev_frame`, `typesafe-sdk==0.7.0`, direct `pydantic>=2.12,<3`, and the public names and finite type subset in README `Frozen initial contract`.
-- Changed files: `src/jev_frame/policy.py`, guarded paths in `src/jev_frame/runtime.py`, mutation metadata in `src/jev_frame/definitions.py`, write admission in `src/jev_frame/limits.py`, public exports in `src/jev_frame/__init__.py`, `tests/test_policy.py`, README.md, IMPLEMENTATION_PLAN.md, ISSUES.md, and this checkpoint.
-- Checks: 70 tests passed on the project Python and isolated CPython 3.11 and 3.14 editable installs; the public example, Ruff check/format, mypy over 22 source files, compileall, `uv build`, an isolated CPython 3.11 wheel import, and `git diff --check` passed.
+- Changed files: `src/jev_frame/investigation.py`, investigation and clarification paths in `src/jev_frame/runtime.py`, `ClarificationRequest` and `RunResult.clarifications` in `src/jev_frame/definitions.py`, investigation admission in `src/jev_frame/limits.py`, public exports in `src/jev_frame/__init__.py`, `tests/test_investigation.py`, README.md, IMPLEMENTATION_PLAN.md, ISSUES.md, and this checkpoint.
+- Checks: 74 tests passed on the project Python and isolated CPython 3.11 and 3.14 editable installs; the public example, Ruff check/format, mypy over 24 source files, compileall, `uv build`, an isolated CPython 3.11 wheel import, and `git diff --check` passed.
 - Failures: GitHub MCP loading was unavailable, so live issues are read and updated through the authenticated GitHub CLI; no implementation blocker remains.
-- Evidence: a 0.999 judgment cannot bypass rejected policy or denied/revoked authority; stale source revalidation blocks dispatch; lost and malformed replies reconcile one fake effect without retry; inconclusive reconciliation and post-dispatch cancellation preserve outcome-unknown; checkpoint errors and missing durable intent fail before effect; checkpoint records bind the exact action digest.
-- Remaining gates: the JF-10 commit is pending; all effect tests are synthetic, and live provider compatibility, real application authorization, publication, deployment and licensing remain unauthorized.
-- Next action: inspect and commit JF-10, post evidence, close #11, update tracker #1, then select the next issue from live prerequisites.
+- Evidence: expansion adds the target candidate and reruns only the selection while an unrelated judgment remains at one call; appended conflicting evidence retains both sources; unchanged retrieval stops as no-progress; no action, exhausted budget and denied scope remain distinct; typed answer validation permits a fresh run linked by parent operation ID.
+- Remaining gates: the JF-11 commit is pending; live provider compatibility, real application authorization, publication, deployment and licensing remain unauthorized.
+- Next action: inspect and commit JF-11, post evidence, close #12, update tracker #1, then select the next issue from live prerequisites.
 
 Use current official TypeSafe documentation when work resumes.
 Do not copy private project history or local credentials into this repository.

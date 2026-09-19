@@ -26,6 +26,7 @@ from .definitions import (
     CandidateProvider,
     CandidateSet,
     ChoiceQuestion,
+    ClarificationRequest,
     ConstantBinding,
     DefaultBinding,
     DerivationBinding,
@@ -55,6 +56,11 @@ from .inspection import (
     JevEvent,
     diagnostic_for_error,
     diagnostic_for_unresolved,
+)
+from .investigation import (
+    InvestigationAction,
+    InvestigationNeed,
+    InvestigationResult,
 )
 from .limits import (
     AdmissionError,
@@ -86,6 +92,9 @@ from .state import (
     ModelJudgment,
     Observation,
     bind_source,
+    candidate_snapshot_digest,
+    canonical_digest,
+    evidence_digest,
 )
 
 InputT = TypeVar("InputT")
@@ -118,6 +127,7 @@ class _RunState:
     selections: dict[str, Any]
     decision_refs: dict[str, str]
     acceptance_refs: dict[str, str]
+    investigation_fingerprints: set[str]
     statuses: dict[str, NodeStatus]
     usages: list[Usage]
 
@@ -130,6 +140,19 @@ class _RunUnresolved(Exception):
 
 class _ToolFailure(Exception):
     pass
+
+
+class _ClarificationNeeded(_RunUnresolved):
+    def __init__(self, request: ClarificationRequest) -> None:
+        self.request = request
+        super().__init__(
+            Unresolved(
+                UnresolvedReason.MISSING_EVIDENCE,
+                request.subjects,
+                "host clarification is required",
+                needed=".".join(str(part) for part in request.missing_path),
+            )
+        )
 
 
 def _read_path(value: Any, path: Sequence[str | int]) -> Any:
@@ -226,6 +249,8 @@ class Runtime:
         authorizer: Authorizer | None = None,
         intent_store: DurableIntentStore | None = None,
         required_checkpoint: RequiredCheckpoint | None = None,
+        investigation_actions: Sequence[InvestigationAction] = (),
+        clarifications: Sequence[ClarificationRequest] = (),
         ledger: UsageLedger | None = None,
         event_log: EventLog | None = None,
     ) -> None:
@@ -273,6 +298,27 @@ class Runtime:
         self.authorizer = authorizer
         self.intent_store = intent_store
         self.required_checkpoint = required_checkpoint
+        if any(
+            not isinstance(action, InvestigationAction)
+            for action in investigation_actions
+        ) or len({action.id for action in investigation_actions}) != len(
+            investigation_actions
+        ):
+            raise RuntimeConfigurationError(
+                "investigation actions must have unique identifiers"
+            )
+        if any(
+            not isinstance(request, ClarificationRequest) for request in clarifications
+        ) or len({request.id for request in clarifications}) != len(clarifications):
+            raise RuntimeConfigurationError(
+                "clarification requests must have unique identifiers"
+            )
+        self.investigation_actions = tuple(
+            sorted(
+                investigation_actions, key=lambda action: (action.priority, action.id)
+            )
+        )
+        self.clarifications = tuple(clarifications)
         self.event_log = EventLog() if event_log is None else event_log
         self.ledger = ledger
         self._semaphore: asyncio.Semaphore | None = None
@@ -513,6 +559,169 @@ class Runtime:
             },
         )
         return value
+
+    async def _investigate(
+        self,
+        unresolved: Unresolved,
+        inputs: Any,
+        context: RunContext,
+        state: _RunState,
+    ) -> None:
+        candidates = [
+            action
+            for action in self.investigation_actions
+            if unresolved.reason in action.reasons
+            and (not action.handles or unresolved.needed in action.handles)
+        ]
+        applicable = [
+            action
+            for action in candidates
+            if not action.scopes or context.scope in action.scopes
+        ]
+        if not applicable:
+            if candidates:
+                raise _RunUnresolved(
+                    Unresolved(
+                        UnresolvedReason.PERMISSION_DENIAL,
+                        unresolved.subjects,
+                        "investigation is unavailable in the current scope",
+                        needed=unresolved.needed,
+                    )
+                )
+            raise _RunUnresolved(unresolved)
+        action = applicable[0]
+        fingerprint = canonical_digest(
+            {
+                "reason": unresolved.reason.value,
+                "subjects": unresolved.subjects,
+                "needed": unresolved.needed,
+                "action": action.id,
+                "input": inputs,
+                "candidates": {
+                    key: candidate_snapshot_digest(snapshot)
+                    for key, snapshot in state.candidates.items()
+                },
+                "evidence": [evidence_digest(record) for record in state.store.records],
+            }
+        )
+        if fingerprint in state.investigation_fingerprints:
+            raise _RunUnresolved(
+                Unresolved(
+                    UnresolvedReason.NO_PROGRESS,
+                    unresolved.subjects,
+                    "the same investigation was already attempted on unchanged inputs",
+                    attempted_actions=(action.id,),
+                    needed=unresolved.needed,
+                )
+            )
+        state.investigation_fingerprints.add(fingerprint)
+        attempt = len(state.investigation_fingerprints)
+        snapshot = (
+            None
+            if unresolved.needed is None
+            else next(
+                (
+                    item
+                    for item in state.candidates.values()
+                    if item.expansion_ref == unresolved.needed
+                    or item.id == unresolved.needed
+                ),
+                None,
+            )
+        )
+        need = InvestigationNeed(
+            unresolved.reason,
+            unresolved.subjects,
+            unresolved.needed,
+            context.scope,
+            attempt,
+            snapshot,
+        )
+        operation_id = f"{context.run_id}:investigate:{action.id}:{attempt}"
+        ledger = self._ledger_for(context)
+        await ledger.admit_investigation(
+            operation_id, deadline=context.deadline, clock=context.clock
+        )
+
+        def invoke(need: InvestigationNeed) -> Any:
+            return action.function(need)
+
+        value = await self._run_read_operation(
+            operation_id=operation_id,
+            definition_id=action.id,
+            node_id=f"investigate:{action.id}",
+            function=invoke,
+            arguments={"need": need},
+            blocking=action.blocking,
+            timeout=action.timeout,
+            context=context,
+        )
+        if not isinstance(value, InvestigationResult):
+            raise _ToolFailure("investigation returned an invalid result")
+        changed = False
+        if value.candidate_set is not None:
+            expanded = value.candidate_set
+            if need.candidate_set is not None and expanded.id != need.candidate_set.id:
+                raise _ToolFailure(
+                    "investigation replaced a different candidate snapshot"
+                )
+            if expanded.scope != context.scope:
+                raise _RunUnresolved(
+                    Unresolved(
+                        UnresolvedReason.PERMISSION_DENIAL,
+                        unresolved.subjects,
+                        "investigation returned a snapshot outside the run scope",
+                        needed=expanded.id,
+                    )
+                )
+            previous = state.candidates.get(expanded.id)
+            if previous is None or candidate_snapshot_digest(
+                previous
+            ) != candidate_snapshot_digest(expanded):
+                state.candidates[expanded.id] = expanded
+                changed = True
+        for record in value.evidence:
+            if record.scope != context.scope:
+                raise _RunUnresolved(
+                    Unresolved(
+                        UnresolvedReason.PERMISSION_DENIAL,
+                        unresolved.subjects,
+                        "investigation returned evidence outside the run scope",
+                        needed=record.id,
+                    )
+                )
+            state.store.add(record)
+            changed = True
+        if value.clarification is not None:
+            raise _ClarificationNeeded(value.clarification)
+        if not changed:
+            raise _RunUnresolved(
+                Unresolved(
+                    UnresolvedReason.NO_PROGRESS,
+                    unresolved.subjects,
+                    "investigation produced no new candidate or evidence",
+                    attempted_actions=(action.id,),
+                    needed=unresolved.needed,
+                )
+            )
+        self._emit(
+            context,
+            EventKind.OPERATION_COMPLETED,
+            operation_id=operation_id,
+            definition_id=action.id,
+            question_id=f"investigate:{action.id}",
+            data={
+                "result_fingerprint": fingerprint,
+                "evidence_refs": [record.id for record in value.evidence],
+                "usage": {
+                    "coverage": "unknown",
+                    "input_tokens": None,
+                    "output_tokens": None,
+                    "provider_attempts": 0,
+                    "submitted_questions": 0,
+                },
+            },
+        )
 
     def _tool_arguments(
         self,
@@ -1137,44 +1346,60 @@ class Runtime:
             selector.name: state.store.require_current(selector.name, context.scope)
             for selector in judgment.evidence
         }
-        candidates = (
-            {}
-            if judgment.candidate_set is None
-            else {judgment.candidate_set: state.candidates[judgment.candidate_set]}
-        )
         run_id = context.run_id
         assert run_id is not None
-        decision_inputs = DecisionInputs(
-            f"{run_id}:judge:{judgment.id}",
-            subjects,
-            evidence,
-            candidates,
-        )
         assert self._semaphore is not None
-        async with self._semaphore:
-            if isinstance(judgment.primitive, ChoiceQuestion) and candidates:
+        decision_usages: list[Usage] = []
+        revision = 0
+        while True:
+            candidates = (
+                {}
+                if judgment.candidate_set is None
+                else {judgment.candidate_set: state.candidates[judgment.candidate_set]}
+            )
+            suffix = "" if revision == 0 else f":revision:{revision}"
+            decision_inputs = DecisionInputs(
+                f"{run_id}:judge:{judgment.id}{suffix}",
+                subjects,
+                evidence,
+                candidates,
+            )
+            async with self._semaphore:
+                if not (isinstance(judgment.primitive, ChoiceQuestion) and candidates):
+                    decision = await self._decision_client.evaluate(
+                        judgment, decision_inputs, context
+                    )
+                    decision_usages.append(decision.usage)
+                    break
                 selected = await self._decision_client.select(
                     judgment, decision_inputs, context
                 )
-                if selected.decision is None or selected.selection is None:
-                    raise _RunUnresolved(
-                        selected.unresolved
-                        or Unresolved(
-                            UnresolvedReason.REFUTED_CLAIM,
-                            tuple(subjects),
-                            "no candidate satisfied the judgment",
-                        )
+            if selected.decision is not None:
+                decision_usages.append(selected.decision.usage)
+                state.decision_refs[judgment.id] = selected.decision.evidence_refs[-1]
+            if selected.unresolved is not None:
+                await self._investigate(selected.unresolved, inputs, context, state)
+                revision += 1
+                continue
+            if (
+                selected.decision is None
+                or selected.selection is None
+                or selected.selection.candidate is None
+            ):
+                raise _RunUnresolved(
+                    Unresolved(
+                        UnresolvedReason.REFUTED_CLAIM,
+                        tuple(subjects),
+                        "no candidate satisfied the judgment",
                     )
-                state.selections[judgment.id] = selected.selection
-                decision = selected.decision
-            else:
-                decision = await self._decision_client.evaluate(
-                    judgment, decision_inputs, context
                 )
+            state.selections[judgment.id] = selected.selection
+            decision = selected.decision
+            break
+        state.usages.extend(decision_usages)
         state.findings[judgment.id] = decision.answer
         judgment_ref = decision.evidence_refs[-1]
         state.decision_refs[judgment.id] = judgment_ref
-        state.usages.append(decision.usage)
         if judgment.acceptance_policy is not None:
             policy = self.acceptance_policies.get(judgment.acceptance_policy)
             if policy is None:
@@ -1383,6 +1608,46 @@ class Runtime:
             evidence_session=store,
         )
         self._ledger_for(run_context)
+        for request in self.clarifications:
+            if request.definition_id not in {None, definition.id}:
+                continue
+            try:
+                _read_path(inputs, request.missing_path)
+            except _RunUnresolved:
+                unresolved = Unresolved(
+                    UnresolvedReason.MISSING_EVIDENCE,
+                    request.subjects,
+                    "host clarification is required",
+                    needed=".".join(str(part) for part in request.missing_path),
+                )
+                self._emit(
+                    run_context,
+                    EventKind.OPERATION_STARTED,
+                    operation_id=f"{run_id}:run",
+                    definition_id=definition.id,
+                    data={"definition_version": definition.version},
+                )
+                diagnostic = diagnostic_for_unresolved(
+                    unresolved,
+                    definition_id=definition.id,
+                    source_path=("runs", run_id),
+                )
+                self._emit(
+                    run_context,
+                    EventKind.OPERATION_UNRESOLVED,
+                    operation_id=f"{run_id}:run",
+                    definition_id=definition.id,
+                    reason_code=diagnostic.code,
+                    data={"diagnostic": diagnostic.to_dict()},
+                )
+                return self._record_result(
+                    run_id,
+                    RunResult(
+                        TerminalStatus.UNRESOLVED,
+                        unresolved=(unresolved,),
+                        clarifications=(request,),
+                    ),
+                )
         checked_inputs = validate_value(
             definition.input_type, inputs, f"{definition.id} input"
         )
@@ -1394,7 +1659,17 @@ class Runtime:
             definition_id=definition.id,
             data={"definition_version": definition.version},
         )
-        state = _RunState(store, {}, {}, {}, {}, {}, {}, [])
+        state = _RunState(
+            store=store,
+            candidates={},
+            findings={},
+            selections={},
+            decision_refs={},
+            acceptance_refs={},
+            investigation_fingerprints=set(),
+            statuses={},
+            usages=[],
+        )
         try:
             initial = compile_agent(
                 definition,
@@ -1547,6 +1822,31 @@ class Runtime:
                 ),
             )
             raise
+        except _ClarificationNeeded as error:
+            diagnostic = diagnostic_for_unresolved(
+                error.unresolved,
+                definition_id=definition.id,
+                source_path=("runs", run_id),
+            )
+            self._emit(
+                run_context,
+                EventKind.OPERATION_UNRESOLVED,
+                operation_id=f"{run_id}:run",
+                definition_id=definition.id,
+                reason_code=diagnostic.code,
+                data={"diagnostic": diagnostic.to_dict()},
+            )
+            return self._record_result(
+                run_id,
+                RunResult(
+                    TerminalStatus.UNRESOLVED,
+                    partial_findings=tuple(state.findings.values()),
+                    evidence_refs=tuple(record.id for record in store.records),
+                    unresolved=(error.unresolved,),
+                    clarifications=(error.request,),
+                    usage=_usage_total(state.usages),
+                ),
+            )
         except _RunUnresolved as error:
             diagnostic = diagnostic_for_unresolved(
                 error.unresolved,

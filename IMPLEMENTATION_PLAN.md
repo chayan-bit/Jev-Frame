@@ -34,7 +34,8 @@ The ten additions in Section 5.9 are included in the initial target and tracked 
 - JF-08 adds typed candidate-provider bindings, package configuration identity, a generic document-evidence package, public synthetic authoring examples, and evaluator-separated regression descriptors.
 - JF-09 adds the shared read-only scheduler, exact-source completion, isolated run state, shared admission, stale-input rejection, and explicit terminal outcomes.
 - JF-10 adds versioned semantic acceptance, exact-action checkpoints and authorization, durable host intent, guarded synthetic mutations, explicit receipts, and reconciliation without blind retry.
-- There is no bounded investigation, CI configuration, or selected license yet.
+- JF-11 adds bounded unresolved-reason actions, candidate expansion, progress fingerprints, selective judgment reevaluation, conflict-preserving evidence, and typed clarification for fresh linked runs.
+- There is no framework adapter, CI configuration, or selected license yet.
 - Generated environments and local build artifacts remain ignored.
 - JF-01 freezes the initial public names and signatures, the local `jev_frame` import name, run-local persistence, and host-owned acceptance thresholds.
 - `.codex/config.toml` currently contains a comment and does not enforce a model selection; the continuation note now reflects this.
@@ -943,6 +944,14 @@ Real external mutations remain disabled unless separately authorized and accepte
 7. Deliver F09 precise clarification outcomes and bounded useful-action selection, and reuse these in the F08 document-evidence package.
 
 **Acceptance:** a newly discovered candidate can change the result, unnecessary judgments are not recomputed, contradictions remain visible, and unchanged evidence cannot produce an infinite loop.
+
+**JF-11 result:** implemented in `src/jev_frame/investigation.py` and the existing shared runtime and ledger.
+`InvestigationAction` explicitly declares the unresolved reasons, need IDs, scopes, priority, effect and callback that it can address; mutation actions are rejected at definition time.
+The runtime selects the first applicable stable-priority action, admits a semantic investigation and its read call separately, fingerprints the unresolved issue plus current inputs, candidate snapshots and evidence, and stops unchanged output as no-progress.
+A changed candidate snapshot reevaluates only the affected selection under a new decision operation ID, while unrelated current judgments and all earlier provider usage remain retained.
+Evidence returned by an investigation uses the ordinary append-only store and can link contradictions without replacing either source.
+`ClarificationRequest` validates a supported answer type for one missing path and returns through `RunResult.clarifications`; the host can create a fresh linked run with the answer, but the core does not persist or resume a suspended run.
+Focused synthetic checks cover T04, T31, T32 and T64, including no action, exhausted investigation budget and denied scope.
 
 ### Phase 8 — Typed composition and hybrid planning
 
