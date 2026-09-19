@@ -27,11 +27,7 @@ def retrieve_a(
         "1.0.0",
         tuple(
             Candidate(
-                key,
-                document,
-                f"Synthetic A document for {query}",
-                "a",
-                document.version,
+                key, key, f"Synthetic A document for {query}", "a", document.version
             )
             for key, document in documents.items()
         ),
@@ -48,11 +44,7 @@ def retrieve_b(
         "1.0.0",
         tuple(
             Candidate(
-                key,
-                document,
-                f"Synthetic B document for {query}",
-                "b",
-                document.version,
+                key, key, f"Synthetic B document for {query}", "b", document.version
             )
             for key, document in documents.items()
         ),

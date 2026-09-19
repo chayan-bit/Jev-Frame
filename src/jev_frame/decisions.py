@@ -47,7 +47,9 @@ from .provider import (
 from .state import (
     BoundSource,
     CandidateSelection,
+    Evidence,
     EvidenceNotFoundError,
+    EvidenceRecord,
     EvidenceStore,
     ModelJudgment,
     Observation,
@@ -63,7 +65,7 @@ from .state import (
 class DecisionInputs:
     id: str
     subjects: Mapping[str, Any]
-    evidence: Mapping[str, Observation] = field(default_factory=dict)
+    evidence: Mapping[str, Evidence] = field(default_factory=dict)
     candidate_sets: Mapping[str, CandidateSet] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -78,8 +80,12 @@ class DecisionInputs:
                 type(key) is not str or not key for key in values
             ):
                 raise InputValidationError(f"decision {name} must use string keys")
-        if any(not isinstance(value, Observation) for value in self.evidence.values()):
-            raise InputValidationError("decision evidence values must be observations")
+        if any(
+            not isinstance(value, EvidenceRecord) for value in self.evidence.values()
+        ):
+            raise InputValidationError(
+                "decision evidence values must be evidence records"
+            )
         if any(
             not isinstance(value, CandidateSet)
             for value in self.candidate_sets.values()
@@ -130,6 +136,12 @@ class DecisionProvider(Protocol):
     ) -> ProviderBatch: ...
 
 
+class StaleDecisionResult(StaleInputError):
+    def __init__(self, message: str, usage: Usage) -> None:
+        self.usage = usage
+        super().__init__(message)
+
+
 def _store(context: DecisionContext) -> EvidenceStore:
     if context.evidence_session is None:
         return EvidenceStore(context.clock)
@@ -138,7 +150,7 @@ def _store(context: DecisionContext) -> EvidenceStore:
     return context.evidence_session
 
 
-def _register(store: EvidenceStore, record: Observation) -> None:
+def _register(store: EvidenceStore, record: Evidence) -> None:
     try:
         current = store.get(record.id)
     except EvidenceNotFoundError:
@@ -190,7 +202,7 @@ class DecisionClient:
         judgment: Judgment,
         inputs: DecisionInputs,
         context: DecisionContext,
-    ) -> tuple[CandidateSet | None, EvidenceStore, tuple[Observation, ...]]:
+    ) -> tuple[CandidateSet | None, EvidenceStore, tuple[Evidence, ...]]:
         subject_names = tuple(subject.name for subject in judgment.subjects)
         if set(inputs.subjects) != set(subject_names):
             raise InputValidationError(
@@ -349,8 +361,9 @@ class DecisionClient:
             )
             store.add(judgment_record)
             if not store.is_current(judgment_record.id):
-                raise StaleInputError(
-                    "decision inputs changed while the provider request was in flight"
+                raise StaleDecisionResult(
+                    "decision inputs changed while the provider request was in flight",
+                    batch.usage,
                 )
             result = DecisionResult(
                 answer,

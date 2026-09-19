@@ -24,6 +24,7 @@ from .decisions import (  # noqa: F401
     FilterItemResult,
     FilterVerdict,
     SelectionResult,
+    StaleDecisionResult,
 )
 from .definitions import (  # noqa: F401
     MISSING,
@@ -142,6 +143,14 @@ from .provider import (  # noqa: F401
     ProviderRequestTimeout,
     ProviderResponseError,
     TypeSafeProvider,
+)
+from .runtime import (  # noqa: F401
+    ApplicabilityCheck,
+    CompletionCheck,
+    NodeStatus,
+    Runtime,
+    RuntimeConfigurationError,
+    RuntimeProvider,
 )
 from .state import (  # noqa: F401
     AcceptanceEvidence,

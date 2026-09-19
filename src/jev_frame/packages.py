@@ -56,6 +56,7 @@ class DocumentEvidenceRequest:
 class DocumentEvidenceResult:
     selection: ChoiceAnswer
     assessment: NoulAnswer
+    excerpt: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -236,5 +237,6 @@ def bind_document_evidence_package(
         {
             "selection": SELECT_DOCUMENT,
             "assessment": ASSESS_DOCUMENT_SUPPORT,
+            "excerpt": DOCUMENT_EXCERPT,
         },
     )

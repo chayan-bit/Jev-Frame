@@ -2,9 +2,9 @@
 
 A proposed Python framework for building Jev agents and integrating Jev decisions into existing LLM agents.
 
-**Status: JF-08 reusable decision packages and a generic document-evidence package implemented; the read-only scheduler is next.**
-The local package exposes strict definitions, run-local state, deterministic compilation and preview, the asynchronous official SDK adapter, direct decisions, default-safe inspection, and explicitly bound capability packages.
-Live provider compatibility remains unverified, and the package does not yet implement the agent scheduler.
+**Status: JF-09 shared read-only scheduling and evidence-backed completion implemented; guarded writes are next.**
+The local package exposes strict definitions, run-local state, deterministic compilation and preview, the asynchronous official SDK adapter, direct decisions, default-safe inspection, explicitly bound capability packages, and one shared read-only runtime.
+Live provider compatibility remains unverified, and consequential writes remain disabled until JF-10 supplies the distinct authority and reconciliation contracts.
 This is an independent project, not an official TypeSafe product.
 
 ## Local development
@@ -79,8 +79,8 @@ Advanced applications should be able to control candidate providers, decision de
 ## Frozen initial contract
 
 This section fixes the JF-01 contract surface.
-JF-02 implements its definition, binding, context, usage, and result types, JF-03 implements shared state, JF-04 implements compilation and preview, JF-05 implements the official SDK adapter, and JF-06 implements direct decisions and shared admission.
-Later issues implement the agent runtime and guarded execution entry points shown below.
+JF-02 implements its definition, binding, context, usage, and result types, JF-03 implements shared state, JF-04 implements compilation and preview, JF-05 implements the official SDK adapter, JF-06 implements direct decisions and shared admission, and JF-09 implements the read-only runtime.
+Later issues implement guarded execution and the extended entry points shown below.
 
 ### Compatibility baseline
 
@@ -197,12 +197,16 @@ The synthetic example binds the same package to two catalogs, while evaluator-on
 `Runtime.run` is the asynchronous agent entry point.
 `Runtime.run_sync` delegates to it and raises a clear error when called from a running event loop.
 Every run has isolated append-only state while concurrent runs share only the configured provider, executor limits, and `UsageLedger`.
+The runtime retrieves declared candidate snapshots, recompiles against their exact identities, schedules ready dependency nodes deterministically, and runs independent ready work concurrently under the shared limit.
+Dependent judgments always use later provider calls, and an inactive applicability branch cannot bind a result or complete the run.
+Only `PURE` and `READ` tools are admitted in JF-09, tool outputs are strictly validated, and declared blocking callables use bounded worker threads whose underlying work may outlive cancellation of the await.
+Freshness is checked before dispatch and acceptance, so a late answer over changed evidence remains historical and cannot satisfy completion.
+Application-supplied completion callbacks validate semantic acceptance separately from the typed output schema; JF-10 adds the distinct authorization gate for mutations.
 `RunResult` has one terminal status from `completed`, `unresolved`, `failed`, or `cancelled`; a completed value exists only when the completion contract and evidence policy accept it.
 
 The agent authoring shape registers meanings and dependencies while the shared runtime owns scheduling:
 
 ```python
-# Contract shape only; AgentDefinition exists, while Runtime becomes executable in JF-09.
 definition = AgentDefinition(
     id="document_support",
     version="1.0.0",
@@ -234,7 +238,7 @@ Evidence records share `id`, `kind`, typed value or retained reference, source I
 Concrete kinds are `Observation`, `Derivation`, `JudgmentRecord`, `AcceptanceRecord`, `AuthorizationRecord`, `ExecutionRecord`, and `ChildFinding`.
 Contradictory records are linked rather than overwritten, and an evidence view either includes required conflicts or reports insufficient capacity.
 Events use schema version `jev-frame.event.v1`, monotonically increasing run-local sequence numbers, correlation IDs, public reason codes, and allowlisted data only.
-The implemented direct path emits operation-started, attempt-admitted, operation-completed, operation-failed, and operation-cancelled events and propagates cancellation after recording it.
+The implemented direct and runtime paths emit operation-started, attempt-admitted, operation-completed, operation-unresolved, operation-failed, and operation-cancelled events and propagate cancellation after recording an inspectable cancelled result.
 
 ### Failure and ownership rules
 
@@ -532,6 +536,7 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `src/jev_frame/decisions.py` | Standalone evaluate, select, filter, assess, score, exact extraction, and portable callable operations |
 | `src/jev_frame/inspection.py` | Sanitized event records, result serialization, permitted inspection projections, and actionable diagnostics |
 | `src/jev_frame/packages.py` | Typed package binding and the generic document-evidence capability package |
+| `src/jev_frame/runtime.py` | Shared read-only scheduler, tool dispatch, completion checks, cancellation, and terminal results |
 | `src/jev_frame/__init__.py` | Small public export surface |
 | `examples/document_evidence.py` | Public-import synthetic binding of one package to two catalogs |
 | `examples/document_evidence_cases.py` | Evaluator-only synthetic case descriptors excluded from runtime imports |
@@ -542,6 +547,7 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `tests/test_decisions.py` | Offline JF-06 direct-operation, provenance, selection, extraction, and concurrent-admission checks |
 | `tests/test_inspection.py` | Offline JF-07 correlation, redaction, exact projection, diagnostic, sink-failure, and cancellation checks |
 | `tests/test_packages.py` | Offline JF-08 package reuse, binding validation, evaluator isolation, and version-identity checks |
+| `tests/test_runtime.py` | Offline JF-09 scheduling, isolation, completion, stale-input, failure, and cancellation checks |
 
 The [implementation plan for Sol](IMPLEMENTATION_PLAN.md) defines the frozen public contracts, implementation sequence, behavioral checks, and delivery gates for this design.
 JF-01 froze the names and interfaces above after read-only compatibility checks; later changes require an explicit synchronized contract revision.
@@ -552,8 +558,9 @@ JF-05 implements the official asynchronous SDK boundary and validates its wire b
 JF-06 implements the direct decision API and one shared in-memory ledger without adopting the agent scheduler or optional host frameworks.
 JF-07 implements the shared event and inspection vocabulary on the direct path without adding external telemetry, persistence, replay, or a web UI.
 JF-08 implements explicit package binding and the generic document-evidence package without automatic discovery, a registry service, or package-owned acceptance thresholds.
+JF-09 implements the shared read-only runtime without consequential writes, investigation, child composition, planning, distributed queues, or durable resume.
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
-The agent runtime, guarded execution, integrations, and extended capabilities remain assigned to later issues.
+Guarded execution, integrations, and extended capabilities remain assigned to later issues.
 The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.
 
 ## Further reading

@@ -58,6 +58,7 @@ class EventKind(str, Enum):
     OPERATION_STARTED = "operation_started"
     ATTEMPT_ADMITTED = "attempt_admitted"
     OPERATION_COMPLETED = "operation_completed"
+    OPERATION_UNRESOLVED = "operation_unresolved"
     OPERATION_FAILED = "operation_failed"
     OPERATION_CANCELLED = "operation_cancelled"
 
@@ -80,6 +81,11 @@ _EVENT_DATA_FIELDS = {
         "result_fingerprint",
         "evidence_refs",
         "usage",
+    },
+    EventKind.OPERATION_UNRESOLVED: {
+        "definition_id",
+        "question_id",
+        "diagnostic",
     },
     EventKind.OPERATION_FAILED: {"definition_id", "question_id", "diagnostic"},
     EventKind.OPERATION_CANCELLED: {"definition_id", "question_id", "diagnostic"},

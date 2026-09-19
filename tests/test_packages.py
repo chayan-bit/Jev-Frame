@@ -52,7 +52,7 @@ def retrieve_a(
         "documents",
         "1.0.0",
         tuple(
-            Candidate(key, value, f"A result for {query}", "catalog-a", value.version)
+            Candidate(key, key, f"A result for {query}", "catalog-a", value.version)
             for key, value in documents.items()
         ),
         Coverage.COMPLETE,
@@ -67,7 +67,7 @@ def retrieve_b(
         "documents",
         "1.0.0",
         tuple(
-            Candidate(key, value, f"B result for {query}", "catalog-b", value.version)
+            Candidate(key, key, f"B result for {query}", "catalog-b", value.version)
             for key, value in documents.items()
         ),
         Coverage.COMPLETE,
@@ -200,7 +200,7 @@ class PackageTests(unittest.IsolatedAsyncioTestCase):
             )
             assert selected.selection is not None
             assert selected.selection.candidate is not None
-            document = selected.selection.candidate.value
+            document = catalog[selected.selection.candidate.value]
             source = Observation(
                 id=f"document-{index}",
                 value=document,

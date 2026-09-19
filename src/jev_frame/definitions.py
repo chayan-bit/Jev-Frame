@@ -350,6 +350,7 @@ class Tool:
     requires_evidence: tuple[str, ...] = ()
     produces_evidence: tuple[str, ...] = ()
     scope_requirements: tuple[str, ...] = ()
+    blocking: bool = False
     output_type: Any = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -358,6 +359,12 @@ class Tool:
         _text(self.purpose, "tool purpose")
         if not callable(self.function):
             raise DefinitionError("tool function must be callable")
+        if type(self.blocking) is not bool or (
+            self.blocking and inspect.iscoroutinefunction(self.function)
+        ):
+            raise DefinitionError(
+                "tool blocking must be a boolean and asynchronous tools cannot be blocking"
+            )
         if (
             type(self.timeout) not in {int, float}
             or not math.isfinite(self.timeout)
@@ -641,12 +648,19 @@ class CandidateProvider:
     version: str
     function: Callable[..., CandidateSet] = field(repr=False, compare=False)
     bindings: Mapping[str, Binding] = field(default_factory=dict)
+    blocking: bool = False
 
     def __post_init__(self) -> None:
         _text(self.id, "candidate provider id")
         _version(self.version)
         if not callable(self.function):
             raise DefinitionError("candidate provider must be callable")
+        if type(self.blocking) is not bool or (
+            self.blocking and inspect.iscoroutinefunction(self.function)
+        ):
+            raise DefinitionError(
+                "candidate provider blocking must be a boolean and asynchronous providers cannot be blocking"
+            )
         if not isinstance(self.bindings, Mapping):
             raise BindingError("candidate provider bindings must be a mapping")
         signature = inspect.signature(self.function)

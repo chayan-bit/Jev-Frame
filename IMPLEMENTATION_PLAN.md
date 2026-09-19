@@ -32,7 +32,8 @@ The ten additions in Section 5.9 are included in the initial target and tracked 
 - JF-06 adds standalone decision operations, injected evidence sessions, exact source extraction, portable callables, and the shared atomic admission and usage ledger.
 - JF-07 adds schema-versioned sanitized events, allowlisted result serialization, permitted exact inspection, omitted-field manifests, and actionable public diagnostics.
 - JF-08 adds typed candidate-provider bindings, package configuration identity, a generic document-evidence package, public synthetic authoring examples, and evaluator-separated regression descriptors.
-- There is no agent scheduler, CI configuration, or selected license yet.
+- JF-09 adds the shared read-only scheduler, exact-source completion, isolated run state, shared admission, stale-input rejection, and explicit terminal outcomes.
+- There is no guarded write execution, CI configuration, or selected license yet.
 - Generated environments and local build artifacts remain ignored.
 - JF-01 freezes the initial public names and signatures, the local `jev_frame` import name, run-local persistence, and host-owned acceptance thresholds.
 - `.codex/config.toml` currently contains a comment and does not enforce a model selection; the continuation note now reflects this.
@@ -891,6 +892,14 @@ Focused checks cover T57, missing and incompatible functions, duplicate capabili
 
 **Acceptance:** Scenario A completes or escalates correctly through the public API, all required work is accounted for, incompatible scopes are not batched, and no application-specific branch appears in the controller.
 This phase achieves Level B with offline provider evidence, not full README completion.
+
+**JF-09 result:** implemented in `src/jev_frame/runtime.py` over the existing compiler, evidence store, direct decision client, provider adapter, admission ledger, and event log.
+Candidate retrieval is explicit, ready nodes run in stable compiler order under bounded concurrency, and dependent judgments are separate calls over refreshed evidence.
+Each run has isolated evidence and findings while concurrent definitions share the runtime ledger and operation semaphore.
+Only pure and read tools are admitted, blocking callables use bounded threads, and cancellation records a result before propagating without claiming that the underlying thread stopped.
+Completion strictly constructs the declared output type and then requires an application-owned semantic callback, so schema validity alone cannot complete a run.
+Late answers over invalidated inputs remain historical, cost is retained, and staleness, exhaustion, unsupported completion, provider failure, and cancellation remain distinct observable outcomes.
+Focused offline checks cover T18 through T23 using deterministic provider and tool doubles; live provider compatibility remains a separate unauthorized gate.
 
 ### Phase 6 — Acceptance policy and guarded writes
 
