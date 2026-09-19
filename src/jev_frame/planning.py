@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
 import uuid
 from collections.abc import Awaitable, Callable, Mapping, Sequence
@@ -285,6 +286,20 @@ class PlannerEngine(Generic[ResultT]):
         self.step_acceptance_policy = step_acceptance_policy
         self.permitted_evidence = tuple(permitted_evidence)
 
+    @staticmethod
+    async def _within_deadline(value: Any, context: RunContext) -> Any:
+        remaining = context.deadline - context.clock()
+        if remaining <= 0:
+            raise DeadlineExceededError("planner deadline expired")
+        if inspect.isawaitable(value):
+            try:
+                value = await asyncio.wait_for(value, remaining)
+            except TimeoutError as error:
+                raise DeadlineExceededError("planner callback exceeded deadline") from error
+        if context.clock() >= context.deadline:
+            raise DeadlineExceededError("planner callback exceeded deadline")
+        return value
+
     async def run(self, objective: str, context: RunContext) -> PlanningResult[ResultT]:
         if type(objective) is not str or not objective:
             raise PlanningError("objective must be non-empty")
@@ -296,7 +311,13 @@ class PlannerEngine(Generic[ResultT]):
         if not isinstance(store, EvidenceStore):
             raise PlanningError("planner evidence session must be an EvidenceStore")
         root_id = context.run_id or uuid.uuid4().hex
-        ledger = self.runtime._ledger_for(context)
+        run_context = replace(
+            context,
+            run_id=root_id,
+            correlation_id=context.correlation_id or root_id,
+            evidence_session=store,
+        )
+        ledger = self.runtime._ledger_for(run_context)
         outcomes: list[StepOutcome] = []
         planner_usage: list[Usage] = []
         fingerprints: set[str] = set()
@@ -306,22 +327,30 @@ class PlannerEngine(Generic[ResultT]):
             call_id = f"{root_id}:planner:{call_number}"
             try:
                 await ledger.admit_planner_call(
-                    call_id, deadline=context.deadline, clock=context.clock
+                    call_id,
+                    deadline=run_context.deadline,
+                    clock=run_context.clock,
                 )
                 observations = store.project(
-                    self.permitted_evidence, scope=context.scope
+                    self.permitted_evidence, scope=run_context.scope
                 )
                 request = PlannerRequest(
                     objective,
                     tuple(value.description for value in self.capabilities.values()),
                     observations,
                     tuple(outcomes),
-                    context.limits.planner_calls - call_number,
-                    context.limits.plan_revisions - revision,
+                    run_context.limits.planner_calls - call_number,
+                    run_context.limits.plan_revisions - revision,
                 )
-                turn = self.planner(request)
-                if inspect.isawaitable(turn):
-                    turn = await turn
+                try:
+                    turn = await self._within_deadline(
+                        self.planner(request), run_context
+                    )
+                except DeadlineExceededError:
+                    unknown = Usage()
+                    planner_usage.append(unknown)
+                    await ledger.record_usage(call_id, unknown)
+                    raise
                 if not isinstance(turn, PlannerTurn):
                     raise PlanningError("planner must return PlannerTurn")
                 planner_usage.append(turn.usage)
@@ -331,9 +360,9 @@ class PlannerEngine(Generic[ResultT]):
                     value = validate_value(
                         self.result_type, response.value, "proposed result"
                     )
-                    accepted = self.result_validator(value, store)
-                    if inspect.isawaitable(accepted):
-                        accepted = await accepted
+                    accepted = await self._within_deadline(
+                        self.result_validator(value, store), run_context
+                    )
                     if accepted is True:
                         return PlanningResult(
                             TerminalStatus.COMPLETED,
@@ -384,8 +413,8 @@ class PlannerEngine(Generic[ResultT]):
                 revision += 1
                 await ledger.admit_plan_revision(
                     f"{root_id}:revision:{revision}",
-                    deadline=context.deadline,
-                    clock=context.clock,
+                    deadline=run_context.deadline,
+                    clock=run_context.clock,
                 )
                 try:
                     ordered = self._validate_plan(plan)
@@ -401,9 +430,18 @@ class PlannerEngine(Generic[ResultT]):
                     continue
                 step_refs: dict[str, str] = {}
                 for step in ordered:
+                    if run_context.clock() >= run_context.deadline:
+                        raise DeadlineExceededError(
+                            "planner deadline expired before step dispatch"
+                        )
                     try:
                         outcome = await self._execute_step(
-                            step, revision, objective, context, store, step_refs
+                            step,
+                            revision,
+                            objective,
+                            run_context,
+                            store,
+                            step_refs,
                         )
                     except PlanningError as error:
                         outcome = StepOutcome(
@@ -432,6 +470,24 @@ class PlannerEngine(Generic[ResultT]):
             capability = self.capabilities.get(step.capability_id)
             if capability is None:
                 raise PlanningError(f"unknown capability {step.capability_id}")
+            parameter_names = set(inspect.signature(capability.tool.function).parameters)
+            overlap = set(step.arguments) & set(capability.fixed_arguments)
+            if overlap:
+                raise PlanningError(
+                    f"step {step.id} overrides fixed arguments {sorted(overlap)}"
+                )
+            if set(step.arguments) | set(capability.fixed_arguments) != parameter_names:
+                raise PlanningError(
+                    f"step {step.id} arguments do not match {capability.tool.id}"
+                )
+            if any(
+                isinstance(argument, GeneratedText)
+                and name not in capability.generated_parameters
+                for name, argument in step.arguments.items()
+            ):
+                raise PlanningError(
+                    f"step {step.id} generates a host-controlled argument"
+                )
             if (
                 capability.tool.effect is ToolEffect.MUTATION
                 and not capability.allow_mutation
@@ -469,6 +525,11 @@ class PlannerEngine(Generic[ResultT]):
         tool = capability.tool
         signature = inspect.signature(tool.function)
         hints = get_type_hints(tool.function, include_extras=True)
+        overlap = set(step.arguments) & set(capability.fixed_arguments)
+        if overlap:
+            raise PlanningError(
+                f"step {step.id} overrides fixed arguments {sorted(overlap)}"
+            )
         supplied = set(step.arguments) | set(capability.fixed_arguments)
         if supplied != set(signature.parameters):
             raise PlanningError(f"step {step.id} arguments do not match {tool.id}")
@@ -511,7 +572,9 @@ class PlannerEngine(Generic[ResultT]):
                 evidence_dependencies.append(evidence_id)
             validate_value(hints[name], value, f"{tool.id}.{name}")
             bindings[name] = ConstantBinding(value)
-        evidence_id = f"plan:{revision}:{step.id}"
+        root_id = context.run_id
+        assert root_id is not None
+        evidence_id = f"{root_id}:plan:{revision}:{step.id}"
         planned_tool = replace(
             tool,
             bindings=bindings,
@@ -533,7 +596,7 @@ class PlannerEngine(Generic[ResultT]):
         step_context = replace(
             context,
             evidence_session=store,
-            run_id=f"{context.run_id or 'plan'}:revision:{revision}:step:{step.id}",
+            run_id=f"{root_id}:revision:{revision}:step:{step.id}",
         )
         result = await self.runtime.run(definition, objective, step_context)
         return StepOutcome(
