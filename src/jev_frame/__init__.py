@@ -127,6 +127,28 @@ from .documents import (  # noqa: F401
     RetrievePassages,
     document_claim_judgment,
 )
+from .evaluation import (  # noqa: F401
+    BaselineKind,
+    CapabilityIdentity,
+    CaseSplit,
+    EvaluationAccounting,
+    EvaluationCase,
+    EvaluationCriteria,
+    EvaluationDisposition,
+    EvaluationError,
+    EvaluationFailure,
+    EvaluationLeakageError,
+    EvaluationManifest,
+    EvaluationObservation,
+    EvaluationRecord,
+    EvaluationReport,
+    EvaluationTask,
+    EvaluationVariant,
+    MetricCount,
+    SemanticConfiguration,
+    VariantSummary,
+    run_evaluations,
+)
 from .fixtures import (  # noqa: F401
     FIXTURE_SCHEMA_VERSION,
     CaptureAllowlist,

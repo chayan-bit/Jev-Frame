@@ -2,7 +2,7 @@
 
 A proposed Python framework for building Jev agents and integrating Jev decisions into existing LLM agents.
 
-**Status: JF-19 sanitized capture and offline replay is implemented locally; JF-20 evaluations and integration comparisons is the next backlog issue.**
+**Status: JF-20 offline evaluations and integration comparisons are implemented locally; JF-21 policy calibration and shadow comparison is the next backlog issue.**
 The local package exposes strict definitions, run-local state, deterministic compilation and preview, the asynchronous official SDK adapter, direct decisions, default-safe inspection, explicitly bound capability packages, and one shared runtime.
 Live provider compatibility remains unverified, and no real consequential write has been authorized or exercised.
 This is an independent project, not an official TypeSafe product.
@@ -632,6 +632,7 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `src/jev_frame/planning.py` | Bounded typed planning, actual-outcome replanning, host acceptance, and propose-select recipes |
 | `src/jev_frame/artifacts.py` | Bounded artifact generation, revision snapshots, deterministic and semantic checks, and completion evidence |
 | `src/jev_frame/documents.py` | Injected paged document retrieval, exact passage provenance, claim assessment, conflicts, and coverage |
+| `src/jev_frame/evaluation.py` | Evaluator-isolated cases, public-operation comparisons, grouped metrics, accounting, and report serialization |
 | `src/jev_frame/fixtures.py` | Explicit allowlisted capture, versioned regression fixtures, strict offline doubles, finding diffs, and separate reevaluation |
 | `src/jev_frame/__init__.py` | Small public export surface |
 | `examples/document_evidence.py` | Public-import synthetic binding of one package to two catalogs |
@@ -649,6 +650,7 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `tests/test_planning_frameworks.py` | Offline JF-16 real LangChain and Pydantic AI planner-interface checks |
 | `tests/test_artifacts.py` | Offline JF-17 exact-check, semantic-gate, revision, provenance, accounting, and no-progress checks |
 | `tests/test_documents.py` | Offline JF-18 pagination, Unicode span, duplicate passage, contradiction, coverage, and stale-source checks |
+| `tests/test_evaluation.py` | Offline JF-20 label isolation, grouped comparisons, failure metrics, accounting, and generality checks |
 | `tests/test_fixtures.py` | Offline JF-19 sanitization, deterministic replay, incomplete evidence, mutation isolation, and reevaluation checks |
 | `tests/test_packages.py` | Offline JF-08 package reuse, binding validation, evaluator isolation, and version-identity checks |
 | `tests/test_policy.py` | Offline JF-10 acceptance, authorization, revalidation, receipt, reconciliation, and cancellation checks |
@@ -673,6 +675,7 @@ JF-16 implements bounded objective-driven planning and propose-select through th
 JF-17 implements bounded generate-verify-revise composition through that planner and runtime without executing generated code or allowing semantic confidence to override required exact checks.
 JF-18 implements bounded document-collection assessment through injected retrieval and direct decisions without claiming complete retrieval, global ranking, or aggregate certainty.
 JF-19 implements explicit sanitized fixture capture and one-shot offline replay without live provider fallback, effect replay, durable resume, or automatic production export.
+JF-20 implements offline case and baseline measurement through host-supplied public operations without a benchmark service, private evaluation store, task-specific controller, or synthetic reliability claim.
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
 Remaining extended capabilities stay assigned to later issues.
 The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.

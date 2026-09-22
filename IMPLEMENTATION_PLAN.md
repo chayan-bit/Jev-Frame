@@ -1360,3 +1360,15 @@ At every substantive stopping point, update a compact continuation entry in `.co
 - Five focused synthetic tests cover allowlist sanitization, evaluator isolation, deterministic provider replay, incomplete evidence, unknown versions, mismatched calls, mutation isolation, finding diffs, and explicit reevaluation.
 - The complete offline suite passes all 131 tests, Ruff passes `src`, `tests`, and `examples`, and mypy passes all 20 source files.
 - No live provider, original business mutation, durable resume, production trace export, paid evaluation, publication, or deployment was exercised.
+
+### JF-20 offline evaluation checkpoint — 2026-09-22
+
+- The objective was to compare public Jev-Frame and host operations on synthetic cases while keeping evaluator labels outside every runtime input.
+- `EvaluationTask` contains only the allowlisted task projection, lineage, split, group, permitted evidence, capability identities, scope, limits, and honest seed availability, while `EvaluationCriteria` is passed only after each operation returns.
+- `run_evaluations` invokes host-supplied public-operation callbacks, fails closed when evaluator-only sentinels appear in captured provider, tool, or planner inputs, and sanitizes callback exceptions into service-failure categories.
+- Reports preserve per-case negative results and requested or returned version metadata while computing supported completion, correct escalation, harmful automatic error, unnecessary handoff, retrieval failure, service failure, latency, cost, and semantic configuration burden.
+- Mechanically related variants share one source-group denominator, positive group outcomes require every variant to pass, negative categories retain any observed failure, and zero denominators return undefined rates.
+- `EvaluationAccounting.from_ledger` counts each shared operation once, ignores estimates and released reservations, and marks missing foreign host usage as incomplete instead of zero.
+- Four focused synthetic tests cover a real direct-decision comparison, evaluator leakage refusal, repeated groups, unfamiliar capability combinations, missing foreign usage, zero denominators, all failure categories, and sanitized service errors.
+- The complete offline suite passes all 135 tests, the four focused checks also pass on CPython 3.11, Ruff passes `src`, `tests`, and `examples`, and mypy passes all 21 source files.
+- No paid benchmark, live provider, consequential effect, private dataset, automatic policy promotion, publication, or deployment was exercised.
