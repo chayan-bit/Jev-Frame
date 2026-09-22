@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, cast
 
 from jev_frame import (
@@ -80,6 +80,17 @@ def retrieve(query: str, scope: str) -> CandidateSet:
         scope,
         query=query,
         expansion_ref="expand-documents",
+    )
+
+
+def retrieve_complete(query: str, scope: str) -> CandidateSet:
+    return CandidateSet(
+        "documents",
+        "1.0.0",
+        (Candidate("bad", "bad", "irrelevant document", "fixture", "v1"),),
+        Coverage.COMPLETE,
+        scope,
+        query=query,
     )
 
 
@@ -189,6 +200,24 @@ def search_definition() -> AgentDefinition[SearchRequest, SearchResult]:
         tools=(read,),
         judgments=(choose, unrelated),
         candidate_providers=(provider,),
+    )
+
+
+def complete_no_fit_definition() -> AgentDefinition[SearchRequest, SearchResult]:
+    definition = search_definition()
+    return replace(
+        definition,
+        candidate_providers=(
+            CandidateProvider(
+                "documents",
+                "1.0.0",
+                retrieve_complete,
+                {
+                    "query": TaskInputBinding(("query",)),
+                    "scope": HostContextBinding("scope"),
+                },
+            ),
+        ),
     )
 
 
@@ -313,6 +342,10 @@ class InvestigationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(provider.calls.count("choose_document"), 2)
         self.assertEqual(provider.calls.count("unrelated_check"), 1)
         self.assertEqual(len(action_calls), 1)
+        self.assertEqual(result.usage.provider_attempts, 3)
+        self.assertEqual(result.usage.submitted_questions, 3)
+        self.assertEqual(result.usage.input_tokens, 3)
+        self.assertEqual(result.usage.output_tokens, 3)
         projected = {
             record.id for record in store.project(("source-b",), scope="fixture")
         }
@@ -346,6 +379,61 @@ class InvestigationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIs(result.status, TerminalStatus.UNRESOLVED)
         self.assertIs(result.unresolved[0].reason, UnresolvedReason.NO_PROGRESS)
         self.assertEqual(provider.calls.count("choose_document"), 1)
+        self.assertEqual(result.usage.provider_attempts, 2)
+        self.assertEqual(result.usage.submitted_questions, 2)
+
+    async def test_complete_no_fit_preserves_usage(self) -> None:
+        provider = InvestigatingProvider()
+        runtime = Runtime(
+            provider,
+            model="scripted",
+            completion_checks={"completion": lambda value, evidence: True},
+        )
+
+        result = await runtime.run(
+            complete_no_fit_definition(),
+            SearchRequest("target"),
+            context("complete-no-fit"),
+        )
+
+        self.assertIs(result.status, TerminalStatus.UNRESOLVED)
+        self.assertIs(result.unresolved[0].reason, UnresolvedReason.REFUTED_CLAIM)
+        self.assertEqual(provider.calls.count("choose_document"), 1)
+        self.assertEqual(result.usage.provider_attempts, 2)
+        self.assertEqual(result.usage.submitted_questions, 2)
+        self.assertEqual(result.usage.input_tokens, 2)
+        self.assertEqual(result.usage.output_tokens, 2)
+
+    async def test_failed_investigation_preserves_prior_selection_usage(self) -> None:
+        provider = InvestigatingProvider()
+
+        def fail(_: InvestigationNeed) -> InvestigationResult:
+            raise RuntimeError("synthetic expansion failure")
+
+        runtime = Runtime(
+            provider,
+            model="scripted",
+            completion_checks={"completion": lambda value, evidence: True},
+            investigation_actions=(
+                InvestigationAction(
+                    "expand-documents",
+                    (UnresolvedReason.INCOMPLETE_COVERAGE,),
+                    fail,
+                    handles=("expand-documents",),
+                ),
+            ),
+        )
+
+        result = await runtime.run(
+            search_definition(),
+            SearchRequest("target"),
+            context("failed-expansion"),
+        )
+
+        self.assertIs(result.status, TerminalStatus.FAILED)
+        self.assertEqual(provider.calls.count("choose_document"), 1)
+        self.assertEqual(result.usage.provider_attempts, 2)
+        self.assertEqual(result.usage.submitted_questions, 2)
 
     async def test_no_action_exhaustion_and_scope_denial_are_distinct(self) -> None:
         cases = (
@@ -402,6 +490,8 @@ class InvestigationTests(unittest.IsolatedAsyncioTestCase):
                 )
                 self.assertIs(result.status, TerminalStatus.UNRESOLVED)
                 self.assertIs(result.unresolved[0].reason, expected)
+                self.assertEqual(result.usage.provider_attempts, 2)
+                self.assertEqual(result.usage.submitted_questions, 2)
 
     async def test_typed_clarification_allows_a_linked_fresh_run(self) -> None:
         provider = InvestigatingProvider()
