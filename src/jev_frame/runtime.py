@@ -1690,7 +1690,6 @@ class Runtime:
         run_id = context.run_id
         assert run_id is not None
         assert self._semaphore is not None
-        decision_usages: list[Usage] = []
         revision = 0
         while True:
             candidates = (
@@ -1710,13 +1709,13 @@ class Runtime:
                     decision = await self._decision_client.evaluate(
                         judgment, decision_inputs, context
                     )
-                    decision_usages.append(decision.usage)
+                    state.usages.append(decision.usage)
                     break
                 selected = await self._decision_client.select(
                     judgment, decision_inputs, context
                 )
             if selected.decision is not None:
-                decision_usages.append(selected.decision.usage)
+                state.usages.append(selected.decision.usage)
                 state.decision_refs[judgment.id] = selected.decision.evidence_refs[-1]
             if selected.unresolved is not None:
                 await self._investigate(selected.unresolved, inputs, context, state)
@@ -1737,7 +1736,6 @@ class Runtime:
             state.selections[judgment.id] = selected.selection
             decision = selected.decision
             break
-        state.usages.extend(decision_usages)
         state.findings[judgment.id] = decision.answer
         judgment_ref = decision.evidence_refs[-1]
         state.decision_refs[judgment.id] = judgment_ref
