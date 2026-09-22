@@ -12,6 +12,27 @@ from .artifacts import (  # noqa: F401
     GenerateVerifyRecipe,
     GenerateVerifyResult,
 )
+from .calibration import (  # noqa: F401
+    CalibrationError,
+    CalibrationResult,
+    EvaluatorCorrection,
+    FrozenPolicyArtifact,
+    FrozenPolicyMismatch,
+    FrozenPolicyReport,
+    PolicyAction,
+    PolicyArtifactStatus,
+    PolicyCandidate,
+    PolicyCaseResult,
+    PolicyEvaluation,
+    PolicyObservation,
+    ShadowEffectError,
+    ShadowExecutor,
+    ShadowObservation,
+    ShadowResult,
+    calibrate_policies,
+    evaluate_frozen_policy,
+    run_shadow_comparison,
+)
 from .capabilities import (  # noqa: F401
     CapabilityCatalog,
     CapabilityImportError,

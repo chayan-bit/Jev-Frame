@@ -2,7 +2,7 @@
 
 A proposed Python framework for building Jev agents and integrating Jev decisions into existing LLM agents.
 
-**Status: JF-20 offline evaluations and integration comparisons are implemented locally; JF-21 policy calibration and shadow comparison is the next backlog issue.**
+**Status: JF-21 policy calibration and side-effect-free shadow comparison are implemented locally; JF-22 delivery verification is the final backlog issue.**
 The local package exposes strict definitions, run-local state, deterministic compilation and preview, the asynchronous official SDK adapter, direct decisions, default-safe inspection, explicitly bound capability packages, and one shared runtime.
 Live provider compatibility remains unverified, and no real consequential write has been authorized or exercised.
 This is an independent project, not an official TypeSafe product.
@@ -631,6 +631,7 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `src/jev_frame/runtime.py` | Shared scheduler, read and guarded mutation dispatch, completion checks, cancellation, and terminal results |
 | `src/jev_frame/planning.py` | Bounded typed planning, actual-outcome replanning, host acceptance, and propose-select recipes |
 | `src/jev_frame/artifacts.py` | Bounded artifact generation, revision snapshots, deterministic and semantic checks, and completion evidence |
+| `src/jev_frame/calibration.py` | Validation-only policy selection, frozen held-out reports, pending corrections, and advisory shadow comparisons |
 | `src/jev_frame/documents.py` | Injected paged document retrieval, exact passage provenance, claim assessment, conflicts, and coverage |
 | `src/jev_frame/evaluation.py` | Evaluator-isolated cases, public-operation comparisons, grouped metrics, accounting, and report serialization |
 | `src/jev_frame/fixtures.py` | Explicit allowlisted capture, versioned regression fixtures, strict offline doubles, finding diffs, and separate reevaluation |
@@ -649,6 +650,7 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `tests/test_planning.py` | Offline JF-16 plan validation, replanning, no-progress, specialist dispatch, and propose-select checks |
 | `tests/test_planning_frameworks.py` | Offline JF-16 real LangChain and Pydantic AI planner-interface checks |
 | `tests/test_artifacts.py` | Offline JF-17 exact-check, semantic-gate, revision, provenance, accounting, and no-progress checks |
+| `tests/test_calibration.py` | Offline JF-21 validation-only selection, frozen policy, unknown counterfactual, and no-dispatch checks |
 | `tests/test_documents.py` | Offline JF-18 pagination, Unicode span, duplicate passage, contradiction, coverage, and stale-source checks |
 | `tests/test_evaluation.py` | Offline JF-20 label isolation, grouped comparisons, failure metrics, accounting, and generality checks |
 | `tests/test_fixtures.py` | Offline JF-19 sanitization, deterministic replay, incomplete evidence, mutation isolation, and reevaluation checks |
@@ -676,6 +678,7 @@ JF-17 implements bounded generate-verify-revise composition through that planner
 JF-18 implements bounded document-collection assessment through injected retrieval and direct decisions without claiming complete retrieval, global ranking, or aggregate certainty.
 JF-19 implements explicit sanitized fixture capture and one-shot offline replay without live provider fallback, effect replay, durable resume, or automatic production export.
 JF-20 implements offline case and baseline measurement through host-supplied public operations without a benchmark service, private evaluation store, task-specific controller, or synthetic reliability claim.
+JF-21 implements validation-only application policy comparison and advisory shadow reporting without automatic activation, online learning, held-out retuning, or business-tool dispatch.
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
 Remaining extended capabilities stay assigned to later issues.
 The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.

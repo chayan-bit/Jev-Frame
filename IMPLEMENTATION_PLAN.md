@@ -1372,3 +1372,15 @@ At every substantive stopping point, update a compact continuation entry in `.co
 - Four focused synthetic tests cover a real direct-decision comparison, evaluator leakage refusal, repeated groups, unfamiliar capability combinations, missing foreign usage, zero denominators, all failure categories, and sanitized service errors.
 - The complete offline suite passes all 135 tests, the four focused checks also pass on CPython 3.11, Ruff passes `src`, `tests`, and `examples`, and mypy passes all 21 source files.
 - No paid benchmark, live provider, consequential effect, private dataset, automatic policy promotion, publication, or deployment was exercised.
+
+### JF-21 policy calibration checkpoint — 2026-09-22
+
+- The objective was to help an application owner compare bounded policy candidates on validation data, freeze the selected configuration, and inspect advisory shadow choices without enabling them.
+- `calibrate_policies` passes only validation-split observations to the host selector and returns a proposed artifact rather than changing any runtime policy.
+- The artifact freezes policy identity, evaluation and manifest versions, full and validation digests, model identity, judgment versions, retrieval configuration, and dataset versions before held-out evaluation.
+- `evaluate_frozen_policy` rejects any changed frozen field and applies only the selected candidate to the held-out split without invoking the validation selector again.
+- Evaluator corrections remain separate pending-review records and do not alter labels, candidates, or active behavior automatically.
+- `run_shadow_comparison` preserves actual observations, reports alternative-action downstream outcomes as unknown, retains unknown usage, and uses a `ShadowExecutor` that rejects every tool dispatch before the callable runs.
+- Five focused synthetic tests cover validation-only selection, frozen held-out identity, missing validation data, proposed-only artifacts and corrections, unknown counterfactuals, unknown usage, and rejected mutation dispatch.
+- The complete offline suite passes all 140 tests, the five focused checks also pass on CPython 3.11, Ruff passes `src`, `tests`, and `examples`, and mypy passes all 22 source files.
+- No active policy changed, no business tool ran in shadow mode, and no live provider, customer data, online learning, paid evaluation, publication, or deployment was exercised.
