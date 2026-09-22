@@ -1,14 +1,14 @@
 # Jev-Frame implementation issue roadmap
 
-Status: planning only; 22 implementation issues and one coordination tracker are published on GitHub.
-The request creating this backlog does not start implementation.
+Status: implementation authorized on branch `codex/jev-frame-implementation`.
+JF-01 freezes the contracts, JF-02 supplies typed foundations, JF-03 supplies shared state, JF-04 supplies compilation, JF-05 supplies the SDK adapter, JF-06 supplies direct decisions and shared admission, JF-07 supplies sanitized events and inspection, JF-08 supplies reusable packages, JF-09 supplies the shared read-only runtime, JF-10 supplies guarded synthetic write execution, JF-11 supplies bounded investigation and typed clarification, JF-12 supplies the optional LangChain and LangGraph adapter, JF-13 supplies the optional Pydantic AI adapter with tested native TypeSafe reuse boundaries, JF-14 supplies explicit host-tool import and bounded scoped discovery, JF-15 supplies typed specialist composition under shared run-tree limits, and JF-16 supplies bounded objective-driven planning and propose-select recipes.
 Use Sol at high reasoning effort explicitly when implementing an assigned issue.
-The repository remains design-only until that work is requested.
+Local implementation is now requested under the repository and issue boundaries below.
 
 Roadmap tracker: [#1](https://github.com/chayan-bit/Jev-Frame/issues/1).
 Product scope is defined in [README.md](README.md), behavioral contracts in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md), and operating constraints in [AGENTS.md](AGENTS.md).
 This document maps the same scope to independently reviewable work; it does not add a competing architecture.
-Public API names and dependency versions remain provisional until [JF-01 / #2](https://github.com/chayan-bit/Jev-Frame/issues/2) freezes them.
+Public API names and dependency versions are frozen by [JF-01 / #2](https://github.com/chayan-bit/Jev-Frame/issues/2) and summarized in README `Frozen initial contract`.
 
 ## How to execute an issue
 
@@ -113,3 +113,4 @@ There is no guarantee that detailed issues eliminate implementation errors; thei
 
 Local installation and offline fixtures cannot establish Level D or E.
 Each issue is complete only when its stated local acceptance evidence is available; JF-22 may complete local delivery with a clearly pending live gate.
+JF-22 local delivery evidence, including exact Scenario A-L and T01-T65 mappings and the narrowly scoped live smoke boundary, is recorded in [DELIVERY_EVIDENCE.md](DELIVERY_EVIDENCE.md).

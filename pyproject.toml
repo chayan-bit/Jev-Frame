@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jev-frame"
+version = "0.1.0"
+description = "Typed Jev decisions and an optional shared agent runtime"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.12,<3",
+  "typesafe-sdk==0.7.1",
+]
+
+[project.optional-dependencies]
+langchain = [
+  "langchain==1.4.2",
+  "langgraph==1.2.11",
+]
+pydantic-ai = [
+  "pydantic-ai-slim[typesafe]==2.46.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -3,8 +3,8 @@
 ## Project state
 
 Read `README.md` before work.
-This repository contains a design proposal and initialization files only.
-Do not create implementation code, executable examples, dependency manifests, tests, CI, or packages unless the user explicitly requests that work.
+This repository is being implemented through the accepted GitHub backlog on `codex/jev-frame-implementation`.
+Create implementation code, examples, dependencies, tests, CI, or packages only within the current authorized issue scope.
 
 ## Project boundary
 

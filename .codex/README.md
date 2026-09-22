@@ -9,19 +9,20 @@ The project-local configuration currently contains only a comment and does not e
 It contains no credentials, sandbox overrides, approval overrides, or startup commands.
 Project-local configuration may require the normal Codex project trust step before it is applied.
 
-## Issue-planning checkpoint
+## Implementation checkpoint
 
-- Objective: prepare a consistent, dependency-ordered GitHub backlog for the framework, LLM integrations, and ten accepted developer/capability features.
-- State: documentation and repository initialization only; no framework implementation or executable examples.
-- Design: standalone decision API plus optional shared runtime; external frameworks can own the loop, and configured LLMs can plan within Jev-Frame.
-- Scope: reusable framework machinery; application-specific capabilities remain separate.
-- Decisions: use `README.md` for product scope, `IMPLEMENTATION_PLAN.md` for behavioral contracts, and `ISSUES.md` for the GitHub work breakdown and dependencies.
-- Changed files: README, implementation plan, issue roadmap, and this continuation document; no implementation files.
-- Evidence: GitHub tracker #1 links 22 implementation issues (#2–#23), with Scenarios A–L, all F01–F10 features and T01–T65 checks mapped in ISSUES.md.
-- Checks: all 23 live issue bodies match their prepared content; prerequisite ordering is acyclic and every acceptance check has an owner.
-- Authorization: commit and push the four reconciled documentation files directly to main, without opening a pull request.
-- Remaining gates: implementation is not started by issue creation; paid calls, consequential real effects, licensing, and release still require their respective authorization.
-- Next work: when asked to implement an issue, first verify its prerequisites and follow its acceptance criteria using Sol high.
+- JF-22 / GitHub #23 local delivery is complete on `codex/jev-frame-implementation` and awaits GitHub delivery steps.
+- `DELIVERY_EVIDENCE.md` records exact Scenario A-L and T01-T65 coverage, commands, versions, clean installations, installed examples, artifact inspection, live scope, and pending gates.
+- The selected provider dependency is `typesafe-sdk==0.7.1`; the lockfile and credential-safe configuration regression are synchronized.
+- A T38 regression proves planner cycles and unapproved mutations fail before tool dispatch.
+- The full 142-test suite passes on CPython 3.11.15 and 3.14.6 with all extras.
+- Ruff passes `src`, `tests`, and `examples`, and mypy passes all 22 source files.
+- Fresh CPython 3.11 core-only, LangChain and LangGraph, and Pydantic AI wheel environments import the intended surfaces and run all documented examples.
+- The wheel and source distribution pass path and private-marker inspection.
+- Seven authorized synthetic requests support only the recorded TypeSafe SDK 0.7.1 and `jev-1.13.0` `TypeSafeProvider`, `DecisionClient`, and `Runtime` smoke.
+- Live optional-framework, hybrid, fallback, and consequential-effect combinations remain pending, and Level E remains application-specific.
+- No package was published, released, deployed, licensed, or used for a consequential real effect.
+- The remaining action is to commit JF-22, create and review the pull request, merge it when accepted, and then start the separately prepared downstream-agent work.
 
 Use current official TypeSafe documentation when work resumes.
 Do not copy private project history or local credentials into this repository.
