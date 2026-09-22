@@ -1348,3 +1348,15 @@ At every substantive stopping point, update a compact continuation entry in `.co
 - Three focused synthetic tests cover multi-page complete retrieval, Unicode and repeated passages, opposing sources, truncated coverage, and stale versions.
 - The complete offline suite passes all 126 tests, Ruff passes `src`, `tests`, and `examples`, and mypy passes all 19 source files.
 - No live provider, crawler, parser, vector database, external search service, publication, or deployment was exercised.
+
+### JF-19 sanitized replay checkpoint — 2026-09-22
+
+- The objective was to turn explicitly permitted run records into deterministic regression fixtures without repeating provider calls or external effects.
+- `capture_fixture` accepts only named public events, predeclared call scripts, and exact source snapshots selected by `CaptureAllowlist`; it never accepts an arbitrary runtime or host-dependency dump.
+- The versioned manifest preserves stable aliases, operation identities, argument fingerprints, source versions, scripted results, and material redaction or unavailable-field declarations.
+- `OfflineReplay` fails closed on incomplete material evidence, unknown versions, unexpected call order, changed inputs, changed tool identity, or unconsumed calls, and it has no live fallback.
+- Mutation doubles retain their declared effect but return the recorded typed receipt without invoking the original callable, while evaluator annotations remain a separate object that cannot enter fixture runtime inputs.
+- Finding comparison is deterministic, and fresh reevaluation requires a separately supplied operation plus explicit model, policy version, and limits.
+- Five focused synthetic tests cover allowlist sanitization, evaluator isolation, deterministic provider replay, incomplete evidence, unknown versions, mismatched calls, mutation isolation, finding diffs, and explicit reevaluation.
+- The complete offline suite passes all 131 tests, Ruff passes `src`, `tests`, and `examples`, and mypy passes all 20 source files.
+- No live provider, original business mutation, durable resume, production trace export, paid evaluation, publication, or deployment was exercised.

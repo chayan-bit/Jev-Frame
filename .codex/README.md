@@ -11,16 +11,17 @@ Project-local configuration may require the normal Codex project trust step befo
 
 ## Implementation checkpoint
 
-- The current objective is to complete JF-18 / GitHub #19 before continuing to the other independent unblocked branch, JF-19 / GitHub #20.
-- JF-17 is committed locally as `9ff2c6d`, its completion evidence was posted, and GitHub #18 is closed.
-- The live issue confirms that JF-18 depends only on closed JF-08 / #9 and JF-11 / #12.
-- `src/jev_frame/documents.py` adds injected bounded page retrieval, immutable passage identities, exact source validation, direct claim decisions, explicit conflicts, and separate retrieval coverage.
-- `src/jev_frame/__init__.py` exports the public collection contracts, and `tests/test_documents.py` owns the synthetic behavioral checks.
-- Complete multi-page retrieval preserves Unicode spans, duplicate passage identities, and opposing sources, while truncated coverage and stale versions remain unresolved without fabricated certainty.
-- The command `uv run --frozen --all-extras python -m unittest discover -s tests -v` passes all 126 tests.
-- The commands `uv run --frozen --all-extras --with ruff ruff check src tests examples` and `uv run --frozen --all-extras --with mypy mypy src/jev_frame --ignore-missing-imports` pass with no findings across 19 source files.
-- No live provider, external retrieval service, parser, crawler, vector database, publication, deployment, push, or pull request was exercised.
-- The remaining action is to inspect and commit JF-18, post the authorized completion evidence to GitHub #19, close it if the acceptance criteria remain satisfied, and begin JF-19.
+- The current objective is to complete JF-19 / GitHub #20 and then begin the newly unblocked JF-20 / GitHub #21.
+- The verified JF-17 and JF-18 commits were pushed to `origin/codex/jev-frame-implementation`, their completion evidence was posted, and GitHub #18 and #19 are closed.
+- The live issue confirms that JF-19 depends only on closed JF-09 / #10.
+- `src/jev_frame/fixtures.py` adds explicit capture allowlists, versioned source and call manifests, deterministic provider and tool doubles, material-gap refusal, finding diffs, and separately configured reevaluation.
+- `src/jev_frame/__init__.py` exports the public fixture contracts, and `tests/test_fixtures.py` owns the synthetic behavioral checks.
+- Capture does not accept arbitrary runtime state or exceptions, evaluator labels are structurally separate, and offline replay has no live provider or original-tool fallback.
+- The first focused run exposed incorrect test construction for `CompiledQuestion` and `Tool` bindings; those test defects were corrected without changing the implementation contract.
+- The command `uv run --frozen --all-extras python -m unittest discover -s tests -v` passes all 131 tests.
+- The commands `uv run --frozen --all-extras --with ruff ruff check src tests examples` and `uv run --frozen --all-extras --with mypy mypy src/jev_frame --ignore-missing-imports` pass with no findings across 20 source files.
+- No live provider, original business mutation, durable resume, production trace export, paid evaluation, publication, deployment, or pull request was exercised.
+- The remaining action is to inspect and commit JF-19, push it, post completion evidence to GitHub #20, close it if the acceptance criteria remain satisfied, update roadmap #1, and begin JF-20 / GitHub #21.
 
 Use current official TypeSafe documentation when work resumes.
 Do not copy private project history or local credentials into this repository.
