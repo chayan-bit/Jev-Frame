@@ -11,18 +11,16 @@ Project-local configuration may require the normal Codex project trust step befo
 
 ## Implementation checkpoint
 
-- The current objective is to complete JF-17 / GitHub #18 and then continue to the next issue whose live prerequisites are closed.
-- The branch is `codex/jev-frame-implementation` and the starting commit for JF-17 is `d3d1b9f`.
-- The live issue confirms that JF-17 depends only on closed JF-16 / GitHub #17.
-- `src/jev_frame/artifacts.py` adds the generic generate-verify recipe, immutable artifact revisions, deterministic checks, semantic judgments, revision-specific findings, completion support, and bounded no-progress behavior.
-- `src/jev_frame/__init__.py` exports the public artifact recipe contracts, and `tests/test_artifacts.py` owns the synthetic behavioral checks.
-- Required exact failure and error block semantic execution, changed revisions rerun their checks, identical output stops immediately, and completion requires current evidence supporting every declared field.
-- The command `uv run --frozen --all-extras python -m unittest discover -s tests -v` passes all 123 tests.
-- The focused four-test artifact suite also passes in an isolated CPython 3.11 environment with all extras.
-- The commands `uv run --frozen --all-extras --with ruff ruff check src tests examples` and `uv run --frozen --all-extras --with mypy mypy src/jev_frame --ignore-missing-imports` pass with no findings across 18 source files.
-- The GitHub MCP loader was unavailable because `github` is missing from its local index, so authenticated `gh` supplied the read-only live issue state.
-- No live provider, generated-code execution, consequential effect, publication, deployment, push, or pull request was exercised.
-- The remaining action is to inspect and commit the JF-17 diff, post the authorized completion evidence to GitHub #18, close it if the acceptance criteria remain satisfied, and inspect the next live prerequisite set.
+- The current objective is to complete JF-18 / GitHub #19 before continuing to the other independent unblocked branch, JF-19 / GitHub #20.
+- JF-17 is committed locally as `9ff2c6d`, its completion evidence was posted, and GitHub #18 is closed.
+- The live issue confirms that JF-18 depends only on closed JF-08 / #9 and JF-11 / #12.
+- `src/jev_frame/documents.py` adds injected bounded page retrieval, immutable passage identities, exact source validation, direct claim decisions, explicit conflicts, and separate retrieval coverage.
+- `src/jev_frame/__init__.py` exports the public collection contracts, and `tests/test_documents.py` owns the synthetic behavioral checks.
+- Complete multi-page retrieval preserves Unicode spans, duplicate passage identities, and opposing sources, while truncated coverage and stale versions remain unresolved without fabricated certainty.
+- The command `uv run --frozen --all-extras python -m unittest discover -s tests -v` passes all 126 tests.
+- The commands `uv run --frozen --all-extras --with ruff ruff check src tests examples` and `uv run --frozen --all-extras --with mypy mypy src/jev_frame --ignore-missing-imports` pass with no findings across 19 source files.
+- No live provider, external retrieval service, parser, crawler, vector database, publication, deployment, push, or pull request was exercised.
+- The remaining action is to inspect and commit JF-18, post the authorized completion evidence to GitHub #19, close it if the acceptance criteria remain satisfied, and begin JF-19.
 
 Use current official TypeSafe documentation when work resumes.
 Do not copy private project history or local credentials into this repository.

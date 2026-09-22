@@ -1337,3 +1337,14 @@ At every substantive stopping point, update a compact continuation entry in `.co
 - Four focused synthetic tests cover exact failure followed by successful revision, a required-check exception with no semantic dispatch, recomputation of an earlier passing check after revision, identical-output no-progress, and shared usage accounting.
 - The complete offline suite passes all 123 tests, the focused artifact suite also passes on CPython 3.11, Ruff passes `src`, `tests`, and `examples`, and mypy passes all 18 source files.
 - No live provider, generated-code execution, consequential external effect, publication, deployment, or package release was exercised.
+
+### JF-18 document collection checkpoint — 2026-09-22
+
+- The objective was to assess claims over bounded injected retrieval while retaining exact source versions, passage offsets, contradictory evidence, and collection coverage.
+- `DocumentCollectionWorkflow` accepts only a host-supplied paged retriever, immutable `DocumentRecord` inputs, and the shared direct decision client; it adds no retrieval infrastructure.
+- Passage identities contain document ID, version, and half-open Python Unicode code-point offsets, so repeated text and duplicate titles do not collapse provenance.
+- Every passage is checked against the retained source before assessment, and changed versions or incorrect offsets fail without provider dispatch.
+- Individual support, refutation, and unknown decisions remain separate, simultaneous support and refutation produces a source-conflict record, and no probability product or cross-batch score is computed.
+- Three focused synthetic tests cover multi-page complete retrieval, Unicode and repeated passages, opposing sources, truncated coverage, and stale versions.
+- The complete offline suite passes all 126 tests, Ruff passes `src`, `tests`, and `examples`, and mypy passes all 19 source files.
+- No live provider, crawler, parser, vector database, external search service, publication, or deployment was exercised.

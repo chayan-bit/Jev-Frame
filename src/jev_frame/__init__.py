@@ -112,6 +112,21 @@ from .definitions import (  # noqa: F401
     ensure_supported_type,
     validate_value,
 )
+from .documents import (  # noqa: F401
+    PASSAGE_EVIDENCE,
+    REFUTES,
+    SUPPORTS,
+    UNKNOWN,
+    ClaimEvidenceOutcome,
+    DocumentCollectionError,
+    DocumentCollectionResult,
+    DocumentCollectionWorkflow,
+    PassageAssessment,
+    PassagePage,
+    PassageRecord,
+    RetrievePassages,
+    document_claim_judgment,
+)
 from .inspection import (  # noqa: F401
     DECISION_RESULT_SCHEMA_VERSION,
     EVENT_SCHEMA_VERSION,

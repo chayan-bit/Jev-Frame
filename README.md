@@ -2,7 +2,7 @@
 
 A proposed Python framework for building Jev agents and integrating Jev decisions into existing LLM agents.
 
-**Status: JF-17 bounded artifact generation, verification, and revision is implemented locally; JF-18 document-collection evidence is the next backlog issue.**
+**Status: JF-18 bounded document-collection evidence is implemented locally; JF-19 sanitized capture and replay is the next backlog issue.**
 The local package exposes strict definitions, run-local state, deterministic compilation and preview, the asynchronous official SDK adapter, direct decisions, default-safe inspection, explicitly bound capability packages, and one shared runtime.
 Live provider compatibility remains unverified, and no real consequential write has been authorized or exercised.
 This is an independent project, not an official TypeSafe product.
@@ -195,6 +195,12 @@ Package IDs and versions are serialized into the compiled program and therefore 
 Both host functions receive their catalogs through explicit arguments and context bindings, so the package definition contains neither application services nor credentials.
 The returned `DocumentEvidencePackage` exposes its small judgments and exact source locator for direct `DecisionClient` use and creates a `CompletionContract` only after the application supplies an acceptance-policy ID.
 The synthetic example binds the same package to two catalogs, while evaluator-only expected outcomes live in a separate example module that Jev-Frame never imports.
+
+`DocumentCollectionWorkflow` extends that package boundary with an injected paged retriever and immutable `PassageRecord` values; the core still supplies no crawler, index, vector database, or PDF parser.
+Each passage identity includes its document, source version, and half-open Python Unicode code-point offsets, so repeated text and duplicate titles remain distinct.
+The workflow verifies every passage against the retained `DocumentRecord`, binds the exact source span, and evaluates each passage independently through the direct decision API.
+`DocumentCollectionResult` keeps the individual distributions and source references, reports retrieval coverage separately, and links simultaneous support and refutation as a source conflict without multiplying probabilities or constructing a cross-batch ranking.
+Truncated or unknown retrieval remains explicitly incomplete even when no supplied passage supports the claim, while changed versions or mismatched offsets fail before provider dispatch.
 
 `Runtime.run` is the asynchronous agent entry point.
 `Runtime.run_sync` delegates to it and raises a clear error when called from a running event loop.
@@ -625,6 +631,7 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `src/jev_frame/runtime.py` | Shared scheduler, read and guarded mutation dispatch, completion checks, cancellation, and terminal results |
 | `src/jev_frame/planning.py` | Bounded typed planning, actual-outcome replanning, host acceptance, and propose-select recipes |
 | `src/jev_frame/artifacts.py` | Bounded artifact generation, revision snapshots, deterministic and semantic checks, and completion evidence |
+| `src/jev_frame/documents.py` | Injected paged document retrieval, exact passage provenance, claim assessment, conflicts, and coverage |
 | `src/jev_frame/__init__.py` | Small public export surface |
 | `examples/document_evidence.py` | Public-import synthetic binding of one package to two catalogs |
 | `examples/document_evidence_cases.py` | Evaluator-only synthetic case descriptors excluded from runtime imports |
@@ -640,6 +647,7 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `tests/test_planning.py` | Offline JF-16 plan validation, replanning, no-progress, specialist dispatch, and propose-select checks |
 | `tests/test_planning_frameworks.py` | Offline JF-16 real LangChain and Pydantic AI planner-interface checks |
 | `tests/test_artifacts.py` | Offline JF-17 exact-check, semantic-gate, revision, provenance, accounting, and no-progress checks |
+| `tests/test_documents.py` | Offline JF-18 pagination, Unicode span, duplicate passage, contradiction, coverage, and stale-source checks |
 | `tests/test_packages.py` | Offline JF-08 package reuse, binding validation, evaluator isolation, and version-identity checks |
 | `tests/test_policy.py` | Offline JF-10 acceptance, authorization, revalidation, receipt, reconciliation, and cancellation checks |
 | `tests/test_runtime.py` | Offline JF-09 scheduling, isolation, completion, stale-input, failure, and cancellation checks |
@@ -661,6 +669,7 @@ JF-14 implements finite scoped discovery and explicit read-only host-tool import
 JF-15 implements typed specialist composition through the shared runtime without recursive autonomous hierarchies, distributed workers, or cross-run memory.
 JF-16 implements bounded objective-driven planning and propose-select through the shared runtime without granting generated text execution authority or claiming live-provider compatibility.
 JF-17 implements bounded generate-verify-revise composition through that planner and runtime without executing generated code or allowing semantic confidence to override required exact checks.
+JF-18 implements bounded document-collection assessment through injected retrieval and direct decisions without claiming complete retrieval, global ranking, or aggregate certainty.
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
 Remaining extended capabilities stay assigned to later issues.
 The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.
