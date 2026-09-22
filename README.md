@@ -2,7 +2,7 @@
 
 A proposed Python framework for building Jev agents and integrating Jev decisions into existing LLM agents.
 
-**Status: JF-16 hybrid planning and the audited correctness boundaries are implemented locally; JF-17 evaluation support is the next backlog issue.**
+**Status: JF-17 bounded artifact generation, verification, and revision is implemented locally; JF-18 document-collection evidence is the next backlog issue.**
 The local package exposes strict definitions, run-local state, deterministic compilation and preview, the asynchronous official SDK adapter, direct decisions, default-safe inspection, explicitly bound capability packages, and one shared runtime.
 Live provider compatibility remains unverified, and no real consequential write has been authorized or exercised.
 This is an independent project, not an official TypeSafe product.
@@ -568,6 +568,14 @@ Final proposed results remain subject to the host-supplied output type and seman
 `propose_select` filters host-generated alternatives before one Jev selection call and returns `NO_FIT` without provider dispatch when no valid candidates survive.
 The optional LangChain and Pydantic AI adapters turn their native runnable and agent interfaces into planner callables without transferring tool dispatch or completion authority.
 
+`GenerateVerifyRecipe` composes a registered generator, deterministic `ArtifactCheck` capabilities, `ArtifactSemanticCheck` judgments, and an `ArtifactCompletionContract` through the same `PlannerEngine` and `Runtime`.
+Each generated value is detached into an immutable `ArtifactRevision` with a stable digest, generator metadata, source references, and a run-scoped evidence record before any check receives it.
+Deterministic checks run before semantic judgments, and any failed or errored required check blocks completion regardless of model confidence.
+Failed findings return to the generator as deterministic structured feedback, while every finding names the exact artifact revision, check evidence, source evidence, and declared fields it supports.
+Completion rechecks only current evidence for the latest revision, so a passing finding for an older artifact cannot accept a replacement artifact.
+The recipe stops at its artifact-revision limit, on the shared planner or deadline limits, or immediately when a generator repeats an identical digest.
+Generated code remains inert data unless the host explicitly registers a compiler, test runner, or execution capability with its own safety contract.
+
 ## Scope boundaries
 
 The core should contain reusable agent machinery, not application-specific business rules, customer data, credentials, or private benchmark history.
@@ -616,6 +624,7 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `src/jev_frame/policy.py` | Versioned semantic policies, exact action/checkpoint records, authorization, receipts, and durable intent contracts |
 | `src/jev_frame/runtime.py` | Shared scheduler, read and guarded mutation dispatch, completion checks, cancellation, and terminal results |
 | `src/jev_frame/planning.py` | Bounded typed planning, actual-outcome replanning, host acceptance, and propose-select recipes |
+| `src/jev_frame/artifacts.py` | Bounded artifact generation, revision snapshots, deterministic and semantic checks, and completion evidence |
 | `src/jev_frame/__init__.py` | Small public export surface |
 | `examples/document_evidence.py` | Public-import synthetic binding of one package to two catalogs |
 | `examples/document_evidence_cases.py` | Evaluator-only synthetic case descriptors excluded from runtime imports |
@@ -630,6 +639,7 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `tests/test_composition.py` | Offline JF-15 child scope, evidence, ancestry, limits, accounting, conflict, cancellation, and uncertain-effect checks |
 | `tests/test_planning.py` | Offline JF-16 plan validation, replanning, no-progress, specialist dispatch, and propose-select checks |
 | `tests/test_planning_frameworks.py` | Offline JF-16 real LangChain and Pydantic AI planner-interface checks |
+| `tests/test_artifacts.py` | Offline JF-17 exact-check, semantic-gate, revision, provenance, accounting, and no-progress checks |
 | `tests/test_packages.py` | Offline JF-08 package reuse, binding validation, evaluator isolation, and version-identity checks |
 | `tests/test_policy.py` | Offline JF-10 acceptance, authorization, revalidation, receipt, reconciliation, and cancellation checks |
 | `tests/test_runtime.py` | Offline JF-09 scheduling, isolation, completion, stale-input, failure, and cancellation checks |
@@ -650,6 +660,7 @@ JF-12 and JF-13 implement optional LangChain, LangGraph, and Pydantic AI boundar
 JF-14 implements finite scoped discovery and explicit read-only host-tool import without scanning packages, opening MCP sessions, or inferring authority from schemas.
 JF-15 implements typed specialist composition through the shared runtime without recursive autonomous hierarchies, distributed workers, or cross-run memory.
 JF-16 implements bounded objective-driven planning and propose-select through the shared runtime without granting generated text execution authority or claiming live-provider compatibility.
+JF-17 implements bounded generate-verify-revise composition through that planner and runtime without executing generated code or allowing semantic confidence to override required exact checks.
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
 Remaining extended capabilities stay assigned to later issues.
 The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.

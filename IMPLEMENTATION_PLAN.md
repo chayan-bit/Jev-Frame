@@ -517,8 +517,8 @@ Other frameworks may consume the callable API without an integration-specific de
 
 ### 5.9 Developer experience and capability baseline
 
-All ten features below are part of the planned initial delivery.
-JF-01 freezes the public convenience names in the README, and none is an implemented API yet.
+All ten features below are part of the accepted initial delivery.
+The README and issue checkpoints record which convenience APIs are implemented.
 
 | ID | Feature | Implementation contract |
 |---|---|---|
@@ -1326,3 +1326,14 @@ At every substantive stopping point, update a compact continuation entry in `.co
 - The full 119-test suite passes under CPython 3.11 and 3.14 with all optional integrations, Ruff and mypy pass, all offline examples pass, both distribution artifacts build, and an isolated core-only wheel import passes.
 - The supplied audit probes now fail closed or return the documented unresolved or failed states, with one expected early `InputValidationError` proving the strict-Literal boundary.
 - No live model, consequential external write, application acceptance calibration, publication, deployment, push, pull request, or GitHub issue mutation was exercised under the audit authorization.
+
+### JF-17 artifact verification checkpoint — 2026-09-22
+
+- The objective was to compose registered artifact generation, deterministic validation, Jev semantic assessment, and bounded revision without adding another scheduler or executing generated code.
+- `GenerateVerifyRecipe` uses the existing `PlannerEngine`, runtime executor, evidence store, direct decision client, ledger, deadlines, and cancellation chain.
+- Every detached `ArtifactRevision` records a stable digest, generator identity and version, source references, and a run-scoped evidence record.
+- Required deterministic failures and errors block semantic assessment and completion, while structured revision-specific findings become the next generator prompt.
+- Completion requires current check and source evidence for the latest revision plus declared passing support for every required field.
+- Four focused synthetic tests cover exact failure followed by successful revision, a required-check exception with no semantic dispatch, recomputation of an earlier passing check after revision, identical-output no-progress, and shared usage accounting.
+- The complete offline suite passes all 123 tests, the focused artifact suite also passes on CPython 3.11, Ruff passes `src`, `tests`, and `examples`, and mypy passes all 18 source files.
+- No live provider, generated-code execution, consequential external effect, publication, deployment, or package release was exercised.

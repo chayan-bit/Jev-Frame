@@ -11,18 +11,18 @@ Project-local configuration may require the normal Codex project trust step befo
 
 ## Implementation checkpoint
 
-- The objective was to implement and verify the eleven authorized audit correctness fixes before resuming JF-17.
-- The branch is `codex/jev-frame-implementation`, the audited baseline is `d3743ed`, JF-01 through JF-16 are committed, and GitHub #17 is closed.
-- Commits `755454f`, `5005ab8`, `f37a95d`, `10cd337`, and `9fc7d1c` repair strict values, immutable snapshots, imported scope, MCP errors, completion and mutation freshness, reconciliation evidence, planner arguments, deadlines, and run identities.
-- The changed implementation and regression files are `src/jev_frame/definitions.py`, `src/jev_frame/state.py`, `src/jev_frame/capabilities.py`, `src/jev_frame/runtime.py`, `src/jev_frame/planning.py`, and their focused existing test modules.
-- The command `uv run --frozen --all-extras python -m unittest discover -s tests -v` passes all 119 tests.
-- The commands `uv run --frozen --all-extras --with ruff ruff check src tests examples` and `uv run --frozen --all-extras --with mypy mypy src/jev_frame --ignore-missing-imports` pass with no findings.
-- The full 119-test suite passes in isolated CPython 3.11 and 3.14 environments, and both versions compile `src` and `examples` successfully.
-- All three offline examples pass, `uv build` produces the wheel and source distribution, and a Python 3.11 environment outside the checkout imports the installed wheel without LangChain or Pydantic AI installed.
-- The supplied execution and MCP probes now fail closed, the planner probe has unique implicit identities and bounded late work, and the evidence probe stops at the expected strict-Literal rejection before reaching its old mutable-snapshot check.
-- The regression suite separately proves immutable detached snapshots and documents that `StepValue` is revision-local while cross-turn reuse uses `StepOutcome.evidence_ref` through `EvidenceValue`.
-- The remaining gates are live-provider compatibility, application acceptance calibration, consequential real effects, publication, deployment, push, PR creation, and GitHub issue mutation, none of which was authorized by the audit task.
-- The next action is to inspect and commit the synchronized documentation, then resume JF-17 only under the original backlog authorization.
+- The current objective is to complete JF-17 / GitHub #18 and then continue to the next issue whose live prerequisites are closed.
+- The branch is `codex/jev-frame-implementation` and the starting commit for JF-17 is `d3d1b9f`.
+- The live issue confirms that JF-17 depends only on closed JF-16 / GitHub #17.
+- `src/jev_frame/artifacts.py` adds the generic generate-verify recipe, immutable artifact revisions, deterministic checks, semantic judgments, revision-specific findings, completion support, and bounded no-progress behavior.
+- `src/jev_frame/__init__.py` exports the public artifact recipe contracts, and `tests/test_artifacts.py` owns the synthetic behavioral checks.
+- Required exact failure and error block semantic execution, changed revisions rerun their checks, identical output stops immediately, and completion requires current evidence supporting every declared field.
+- The command `uv run --frozen --all-extras python -m unittest discover -s tests -v` passes all 123 tests.
+- The focused four-test artifact suite also passes in an isolated CPython 3.11 environment with all extras.
+- The commands `uv run --frozen --all-extras --with ruff ruff check src tests examples` and `uv run --frozen --all-extras --with mypy mypy src/jev_frame --ignore-missing-imports` pass with no findings across 18 source files.
+- The GitHub MCP loader was unavailable because `github` is missing from its local index, so authenticated `gh` supplied the read-only live issue state.
+- No live provider, generated-code execution, consequential effect, publication, deployment, push, or pull request was exercised.
+- The remaining action is to inspect and commit the JF-17 diff, post the authorized completion evidence to GitHub #18, close it if the acceptance criteria remain satisfied, and inspect the next live prerequisite set.
 
 Use current official TypeSafe documentation when work resumes.
 Do not copy private project history or local credentials into this repository.
