@@ -56,14 +56,14 @@ No level authorizes publication or resolves licensing.
 
 ## 2. Verified provider facts and reuse decision
 
-Official documentation and package metadata were refreshed on 2026-09-19.
+Official documentation and package metadata were refreshed again on 2026-09-22 for delivery.
 The documentation must still be checked when the adapter issue is implemented because the SDK is changing quickly.
 These facts constrain the adapter; the framework contracts in later sections are proposed project decisions.
 
 | Verified fact | Implementation consequence | Primary source |
 |---|---|---|
 | The Python package is `typesafe-sdk`, with `AsyncTypeSafeClient` and `TypeSafeClient`. | Reuse official transport, authentication, request handling, and response parsing. | [Python SDK](https://docs.typesafe.ai/sdk/python.md) |
-| The documented SDK changelog lists v0.7.0 on 2026-09-18, changes serialization from `msgspec` to Pydantic, and adds `response_model`; v0.6.0 changed Score criteria to an ordered sequence. | Pin and test SDK 0.7.0 instead of copying older response or dictionary-based Score examples. | [SDK changelog](https://docs.typesafe.ai/sdk/python/changelog.md) |
+| The documented SDK changelog lists v0.7.1 on 2026-09-21, which validates API keys early and excludes them from logged exceptions; v0.7.0 changed serialization from `msgspec` to Pydantic and added `response_model`. | Pin and test SDK 0.7.1, including its credential-safe configuration boundary. | [SDK changelog](https://docs.typesafe.ai/sdk/python/changelog.md) |
 | Every question in a request sees the same state and is evaluated independently. | Batch only compatible ready judgments and split genuine dependencies across calls. | [State](https://docs.typesafe.ai/concepts/state.md) |
 | Question IDs are response routing keys and are not inference inputs. | Put subject identity, relevant paths, and full question meaning in instructions. | [Primitives](https://docs.typesafe.ai/primitives.md) |
 | Choice returns a label, a distribution, and confidence. | Preserve all three and verify the label against the supplied snapshot. | [Answers](https://docs.typesafe.ai/sdk/python/api/types/responses.md) |
@@ -94,9 +94,9 @@ Sol should confirm maintenance and compatibility during Phase 0, then stop surve
 
 - Require Python 3.11 or newer for standard asynchronous task groups and timeout handling; CPython 3.11.15 and 3.14.6 are the JF-01 compatibility points, not the final delivery matrix.
 - Use `jev_frame` as the local import name without claiming ownership of a package registry name.
-- Pin the initial official provider dependency to `typesafe-sdk==0.7.0`.
+- Pin the official provider dependency to `typesafe-sdk==0.7.1`.
 - Declare `pydantic>=2.12,<3` directly and use strict `TypeAdapter` validation at typed application boundaries.
-- The isolated JF-01 checks resolved Pydantic 2.13.5 with SDK 0.7.0 on both tested Python versions.
+- The delivery checks resolve Pydantic 2.13.5 with SDK 0.7.1 on both tested Python versions.
 - Prefer frozen dataclasses for internal records and Pydantic only at the supported public boundary.
 - Do not implement a new recursive Python type validator, general schema language, or plugin discovery system.
 - Use standard-library `unittest`, including asynchronous test support, unless actual test complexity justifies a different runner.
@@ -107,7 +107,7 @@ Sol should confirm maintenance and compatibility during Phase 0, then stop surve
 
 ### 2.3 Framework integration sources and reuse update
 
-Official framework documentation and PyPI package metadata were inspected on 2026-09-19 for this extension and JF-01.
+Official framework documentation and PyPI package metadata were inspected again on 2026-09-22 for delivery.
 [LangChain tools](https://docs.langchain.com/oss/python/langchain/tools) support callable tools and host-injected context.
 [LangGraph workflows and agents](https://docs.langchain.com/oss/python/langgraph/workflows-agents) provide the outer agent loop and explicit control-flow placement.
 [Pydantic AI tools](https://pydantic.dev/docs/ai/tools-toolsets/tools/) offer functions, context injection, and reusable toolsets.
@@ -843,7 +843,7 @@ Focused checks cover T10-T13 and the preview portion of T58, including opaque ro
 **Acceptance:** SDK wire behavior is exercised offline, Noul has no invented confidence, fractional Score values survive, and retry layers cannot multiply each other.
 Live compatibility remains a separate unpassed gate until Phase 11.
 
-**JF-05 result:** implemented in `src/jev_frame/provider.py` around the public `AsyncTypeSafeClient.system_one` interface from `typesafe-sdk==0.7.0`.
+**JF-05 result:** implemented in `src/jev_frame/provider.py` around the public `AsyncTypeSafeClient.system_one` interface and verified with `typesafe-sdk==0.7.1`.
 The adapter disables SDK retries per call, admits and records each framework-owned attempt once, preserves request and model identity, counts every resubmitted question, and leaves host-owned clients open.
 Strict batch validation covers answer completeness and type, candidate membership, finite probabilities and confidence, normalization within `1e-3`, exact ordered Score legends, fractional Score range, and optional nonnegative usage.
 Focused SDK mock-transport checks cover T14-T17, including unknown candidates, missing and malformed answers, NaN, bad distributions, near-zero Noul, fractional Score, throttling, retry exhaustion, timeout, authentication, cancellation, cleanup, sanitized failures, and unknown usage.
@@ -1384,3 +1384,15 @@ At every substantive stopping point, update a compact continuation entry in `.co
 - Five focused synthetic tests cover validation-only selection, frozen held-out identity, missing validation data, proposed-only artifacts and corrections, unknown counterfactuals, unknown usage, and rejected mutation dispatch.
 - The complete offline suite passes all 140 tests, the five focused checks also pass on CPython 3.11, Ruff passes `src`, `tests`, and `examples`, and mypy passes all 22 source files.
 - No active policy changed, no business tool ran in shadow mode, and no live provider, customer data, online learning, paid evaluation, publication, or deployment was exercised.
+
+### JF-22 delivery checkpoint — 2026-09-22
+
+- The complete offline suite passes all 142 tests on CPython 3.11.15 and 3.14.6, and Ruff and mypy pass across the implementation, tests, and examples.
+- A focused T38 regression now proves plan dependency cycles and planner-proposed mutations fail before dispatch.
+- The official SDK pin is 0.7.1, with an offline regression proving malformed keys fail before transport and supplied key material is absent from public errors and client representations.
+- Fresh core-only, LangChain and LangGraph, and Pydantic AI wheel environments import their intended surfaces and run every documented example through installed `jev_frame` imports.
+- The wheel and source distribution contain no local environments, Codex state, VCS data, bytecode, live evidence, or credential files.
+- `DELIVERY_EVIDENCE.md` maps Scenarios A-L and T01-T65 to exact checks and records the build, installations, versions, and remaining gates.
+- Seven authorized synthetic requests support a bounded Level D smoke for TypeSafe SDK 0.7.1 and `jev-1.13.0` through `TypeSafeProvider`, `DecisionClient`, and `Runtime`; the low-confidence Choice observation is not application acceptance evidence.
+- Live optional-framework, hybrid-planner, fallback, and consequential-effect combinations remain pending, and Level E remains application-specific.
+- No package publication, release, deployment, visibility change, licensing decision, or consequential real effect occurred.

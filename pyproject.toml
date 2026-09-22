@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "pydantic>=2.12,<3",
-  "typesafe-sdk==0.7.0",
+  "typesafe-sdk==0.7.1",
 ]
 
 [project.optional-dependencies]

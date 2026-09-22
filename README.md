@@ -2,9 +2,9 @@
 
 A proposed Python framework for building Jev agents and integrating Jev decisions into existing LLM agents.
 
-**Status: JF-21 policy calibration and side-effect-free shadow comparison are implemented locally; JF-22 delivery verification is the final backlog issue.**
+**Status: JF-22 local delivery verification supports offline Levels A-C; recorded live-provider and application acceptance remain separate Levels D-E.**
 The local package exposes strict definitions, run-local state, deterministic compilation and preview, the asynchronous official SDK adapter, direct decisions, default-safe inspection, explicitly bound capability packages, and one shared runtime.
-Live provider compatibility remains unverified, and no real consequential write has been authorized or exercised.
+A bounded SDK 0.7.1 and `jev-1.13.0` transport/runtime smoke is recorded separately from application reliability, and no real consequential write has been authorized or exercised.
 This is an independent project, not an official TypeSafe product.
 
 ## Local development
@@ -12,8 +12,8 @@ This is an independent project, not an official TypeSafe product.
 Use the checked lockfile to create the project environment and run the current behavioral checks:
 
 ```sh
-uv sync
-uv run python -m unittest discover -s tests -v
+uv sync --frozen --all-extras
+uv run --frozen --all-extras python -m unittest discover -s tests -v
 ```
 
 Build local artifacts with `uv build`.
@@ -84,11 +84,11 @@ Later issues implement guarded execution and the extended entry points shown bel
 
 ### Compatibility baseline
 
-| Component | Initial contract | Read-only verification on 2026-09-19 |
+| Component | Initial contract | Local verification through 2026-09-22 |
 |---|---|---|
-| Python | Support Python 3.11 and newer; the delivery issue records the exact tested matrix. | `typesafe-sdk==0.7.0` imported and its question models instantiated on CPython 3.11.15 and 3.14.6. |
-| TypeSafe SDK | Use the official `typesafe-sdk==0.7.0` transport and response models. | PyPI metadata declares Python 3.10 or newer; local isolated resolution used Pydantic 2.13.5. |
-| Boundary validation | Declare Pydantic directly as `pydantic>=2.12,<3` and use strict `TypeAdapter` validation. | SDK 0.7.0 itself requires Pydantic 2.12 or newer after replacing `msgspec`. |
+| Python | Support Python 3.11 and newer; the delivery issue records the exact tested matrix. | The complete offline suite passes on CPython 3.11.15 and 3.14.6. |
+| TypeSafe SDK | Use the official `typesafe-sdk==0.7.1` transport and response models. | SDK 0.7.1 validates malformed keys before transport and excludes key material from public exception and client representations; no provider call is needed for this check. |
+| Boundary validation | Declare Pydantic directly as `pydantic>=2.12,<3` and use strict `TypeAdapter` validation. | The locked delivery environment resolves Pydantic 2.13.5. |
 | LangChain and LangGraph | Optional extra `jev-frame[langchain]`; target the public tool, `ToolRuntime`, node, and agent interfaces in LangChain 1.4.2 and LangGraph 1.2.11. | Offline conformance invokes a real `ToolNode` and `StateGraph`, keeps host context out of the model-visible schema, preserves the full result artifact, and leaves execution ownership with the host. |
 | Pydantic AI | Optional extra `jev-frame[pydantic-ai]`; target Pydantic AI Slim 2.46.0 with its TypeSafe extra and reuse `TypeSafeModel` where its translated metadata is sufficient. | Offline conformance exercises `FunctionModel`, `Tool`, `ToolReturn`, `ToolOutput`, and a scripted native `TypeSafeModel` without credentials. |
 
@@ -641,7 +641,7 @@ Do not treat repeated cases as independent samples or claim that small error-fre
 | `tests/test_definitions.py` | Offline JF-02 behavior and failure checks |
 | `tests/test_state.py` | Offline JF-03 candidate and evidence-state checks |
 | `tests/test_compiler.py` | Offline JF-04 compiler, preview, dependency, and limit checks |
-| `tests/test_provider.py` | Offline JF-05 SDK wire, response, retry, ownership, cancellation, and usage checks |
+| `tests/test_provider.py` | Offline JF-05 SDK configuration safety, wire, response, retry, ownership, cancellation, and usage checks |
 | `tests/test_decisions.py` | Offline JF-06 direct-operation, provenance, selection, extraction, and concurrent-admission checks |
 | `tests/test_inspection.py` | Offline JF-07 correlation, redaction, exact projection, diagnostic, sink-failure, and cancellation checks |
 | `tests/test_investigation.py` | Offline JF-11 expansion, selective reevaluation, conflict, no-progress, scope, budget, and clarification checks |
@@ -679,8 +679,10 @@ JF-18 implements bounded document-collection assessment through injected retriev
 JF-19 implements explicit sanitized fixture capture and one-shot offline replay without live provider fallback, effect replay, durable resume, or automatic production export.
 JF-20 implements offline case and baseline measurement through host-supplied public operations without a benchmark service, private evaluation store, task-specific controller, or synthetic reliability claim.
 JF-21 implements validation-only application policy comparison and advisory shadow reporting without automatic activation, online learning, held-out retuning, or business-tool dispatch.
+JF-22 verifies the complete offline acceptance matrix, clean core and adapter-specific wheel installations, installed examples, supported Python versions, and distribution safety.
+The exact commands, scenario and T01-T65 mappings, package versions, and remaining gates are recorded in [DELIVERY_EVIDENCE.md](DELIVERY_EVIDENCE.md).
 The [issue roadmap](ISSUES.md) divides this plan into independently reviewable tasks and maps all ten baseline features to delivery issues.
-Remaining extended capabilities stay assigned to later issues.
+All accepted F01-F10 capabilities are implemented; new capability scope requires a separate issue.
 The local import name is `jev_frame`, licensing remains undecided, persistence remains run-local, and application acceptance thresholds remain host-owned.
 
 ## Further reading
@@ -692,7 +694,7 @@ The local import name is `jev_frame`, licensing remains undecided, persistence r
 - [Speculative fan-out](https://docs.typesafe.ai/patterns/fan-out.md)
 - [Confidence](https://docs.typesafe.ai/confidence.md)
 - [Source-value selection](https://docs.typesafe.ai/cookbooks/pre_parsed_value_extraction_cookbook.md)
-- [Pydantic AI TypeSafe integration](https://pydantic.dev/docs/ai/models/typesafe/)
+- [Pydantic AI TypeSafe integration](https://ai.pydantic.dev/models/typesafe/)
 - [LangGraph workflows and agents](https://docs.langchain.com/oss/python/langgraph/workflows-agents)
 
 No license has been selected yet.

@@ -170,7 +170,7 @@ class EvaluationTests(unittest.IsolatedAsyncioTestCase):
                 verified_cost=0.01,
                 requested_model=result.requested_model,
                 returned_model=result.returned_model,
-                sdk_version="typesafe-sdk-0.7.0",
+                sdk_version="typesafe-sdk-0.7.1",
                 framework_version="direct-api",
             )
 

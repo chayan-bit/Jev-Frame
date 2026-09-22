@@ -113,3 +113,4 @@ There is no guarantee that detailed issues eliminate implementation errors; thei
 
 Local installation and offline fixtures cannot establish Level D or E.
 Each issue is complete only when its stated local acceptance evidence is available; JF-22 may complete local delivery with a clearly pending live gate.
+JF-22 local delivery evidence, including exact Scenario A-L and T01-T65 mappings and the narrowly scoped live smoke boundary, is recorded in [DELIVERY_EVIDENCE.md](DELIVERY_EVIDENCE.md).

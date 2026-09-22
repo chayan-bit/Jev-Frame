@@ -5,7 +5,7 @@ from collections.abc import Callable
 from typing import Any
 
 import httpx2
-from typesafe_sdk import AsyncTypeSafeClient, Noul, RetryPolicy
+from typesafe_sdk import AsyncTypeSafeClient, Noul, RetryPolicy, TypeSafeError
 
 from jev_frame import (
     AttemptStatus,
@@ -104,6 +104,16 @@ def provider_for(
 
 
 class ProviderTests(unittest.IsolatedAsyncioTestCase):
+    async def test_sdk_validates_api_keys_early_without_echoing_them(self) -> None:
+        sentinel = "JF22_SYNTHETIC_KEY"
+        with self.assertRaises(TypeSafeError) as caught:
+            AsyncTypeSafeClient(api_key=f"{sentinel} invalid")
+        self.assertNotIn(sentinel, str(caught.exception))
+        self.assertNotIn(sentinel, repr(caught.exception))
+
+        async with AsyncTypeSafeClient(api_key=sentinel) as client:
+            self.assertNotIn(sentinel, repr(client))
+
     async def test_wire_shape_and_primitive_semantics(self) -> None:
         payloads: list[dict[str, Any]] = []
 

@@ -22,6 +22,7 @@ from jev_frame import (
     EvidenceValue,
     GeneratedText,
     Judgment,
+    MutationContract,
     Observation,
     OperatingPolicy,
     PlannerCapability,
@@ -42,6 +43,7 @@ from jev_frame import (
     TaskInputBinding,
     TerminalStatus,
     Tool,
+    ToolEffect,
     UnresolvedReason,
     Usage,
     UsageCoverage,
@@ -673,6 +675,95 @@ class PlanningTests(unittest.IsolatedAsyncioTestCase):
         self.assertIs(result.unresolved[0].reason, UnresolvedReason.MISSING_CAPABILITY)
         self.assertEqual(calls, [])
         self.assertEqual(len(result.outcomes), 2)
+
+    async def test_cycle_and_forbidden_mutation_are_rejected_without_dispatch(
+        self,
+    ) -> None:
+        calls: list[str] = []
+
+        def read(value: str) -> str:
+            calls.append(value)
+            return value
+
+        def mutate(value: str, operation_id: str) -> str:
+            calls.append(f"{operation_id}:{value}")
+            return value
+
+        capabilities = (
+            PlannerCapability(
+                Tool(
+                    "read",
+                    "1.0.0",
+                    "Read.",
+                    read,
+                    {"value": TaskInputBinding(("value",))},
+                ),
+                generated_parameters=("value",),
+            ),
+            PlannerCapability(
+                Tool(
+                    "mutate",
+                    "1.0.0",
+                    "Mutate.",
+                    mutate,
+                    {
+                        "value": TaskInputBinding(("value",)),
+                        "operation_id": TaskInputBinding(("operation_id",)),
+                    },
+                    effect=ToolEffect.MUTATION,
+                    mutation=MutationContract(
+                        True,
+                        idempotency_parameter="operation_id",
+                    ),
+                ),
+                generated_parameters=("value", "operation_id"),
+            ),
+        )
+        turns = iter(
+            (
+                PlannerTurn(
+                    PlanRevision(
+                        (
+                            PlanStep(
+                                "first",
+                                "read",
+                                {"value": GeneratedText("a", "fixture", "1.0.0")},
+                                ("second",),
+                            ),
+                            PlanStep(
+                                "second",
+                                "read",
+                                {"value": GeneratedText("b", "fixture", "1.0.0")},
+                                ("first",),
+                            ),
+                        )
+                    )
+                ),
+                PlannerTurn(
+                    PlanStep(
+                        "write",
+                        "mutate",
+                        {
+                            "value": GeneratedText("changed", "fixture", "1.0.0"),
+                            "operation_id": GeneratedText(
+                                "operation-1", "fixture", "1.0.0"
+                            ),
+                        },
+                    )
+                ),
+                PlannerTurn(PlannerHandoff("invalid plan")),
+            )
+        )
+        result = await engine(lambda request: next(turns), capabilities).run(
+            "Reject unsafe plans.", context("unsafe", limits())
+        )
+
+        self.assertIs(result.status, TerminalStatus.UNRESOLVED)
+        self.assertEqual(
+            [outcome.failure for outcome in result.outcomes],
+            ["plan dependency cycle", "forbidden mutation mutate"],
+        )
+        self.assertEqual(calls, [])
 
     async def test_unchanged_plan_and_unaccepted_result_stop_explicitly(self) -> None:
         calls: list[str] = []
