@@ -1,6 +1,7 @@
-# JF-22 delivery evidence
+# Verification record
 
-This record applies to the JF-22 changeset on `codex/jev-frame-implementation`, based on `a2599a9`.
+This is the historical verification record for the 0.1.0 implementation, based on commit `a2599a9`.
+It was captured before the open-source release; run the commands in the README to reproduce the current state.
 Deterministic tests and examples ran on 2026-09-22 without using provider credentials or network access after dependency installation.
 
 ## Verified versions and artifacts
@@ -22,7 +23,7 @@ TypeSafe documentation identifies `jev-1.13.0` as the current stable text-only m
 
 `uv build --clear` produced `dist/jev_frame-0.1.0-py3-none-any.whl` and `dist/jev_frame-0.1.0.tar.gz`.
 Archive inspection found only the public package and metadata in the wheel, and the package, README, tests, and build configuration in the source distribution.
-No `.env`, VCS data, Codex workspace files, bytecode, local trace, credential, or private evaluation artifact was present.
+No `.env`, VCS data, agent workspace files, bytecode, local trace, credential, or private evaluation artifact was present.
 
 ## Commands and results
 
@@ -33,10 +34,10 @@ No `.env`, VCS data, Codex workspace files, bytecode, local trace, credential, o
 | Lint | `uv run --frozen --all-extras --with ruff ruff check src tests examples` | Passed. |
 | Types | `uv run --frozen --all-extras --with mypy mypy src/jev_frame --ignore-missing-imports` | Passed across 22 source files. |
 | Build | `uv build --clear` | Wheel and source distribution built. |
-| Core wheel | `uv venv --python 3.11 /tmp/jev-core.7P2kcS` then `uv pip install --python /tmp/jev-core.7P2kcS/bin/python dist/jev_frame-0.1.0-py3-none-any.whl` | Public import passed with LangChain, LangGraph, and Pydantic AI absent. |
-| Core examples | From `/tmp`, `env -u PYTHONPATH /tmp/jev-core.7P2kcS/bin/python /Users/chayanaggarwal/Code/Jev-Frame/examples/document_evidence.py` and the same command for `document_evidence_cases.py` | Passed from installed imports. |
-| LangChain wheel | `uv venv --python 3.11 /tmp/jev-lang.a2Igj8` then `uv pip install --python /tmp/jev-lang.a2Igj8/bin/python 'dist/jev_frame-0.1.0-py3-none-any.whl[langchain]'` | Adapter import and `examples/langchain_decision.py` passed from `/tmp` with `PYTHONPATH` unset. |
-| Pydantic AI wheel | `uv venv --python 3.11 /tmp/jev-pyd.fOedpb` then `uv pip install --python /tmp/jev-pyd.fOedpb/bin/python 'dist/jev_frame-0.1.0-py3-none-any.whl[pydantic-ai]'` | Adapter import and `examples/pydantic_ai_decision.py` passed from `/tmp` with `PYTHONPATH` unset. |
+| Core wheel | `uv venv --python 3.11 <tmp>/jev-core` then `uv pip install --python <tmp>/jev-core/bin/python dist/jev_frame-0.1.0-py3-none-any.whl` | Public import passed with LangChain, LangGraph, and Pydantic AI absent. |
+| Core examples | From a directory outside the repository, `env -u PYTHONPATH <tmp>/jev-core/bin/python <repo>/examples/document_evidence.py` and the same command for `document_evidence_cases.py` | Passed from installed imports. |
+| LangChain wheel | `uv venv --python 3.11 <tmp>/jev-lang` then `uv pip install --python <tmp>/jev-lang/bin/python 'dist/jev_frame-0.1.0-py3-none-any.whl[langchain]'` | Adapter import and `examples/langchain_decision.py` passed from outside the repository with `PYTHONPATH` unset. |
+| Pydantic AI wheel | `uv venv --python 3.11 <tmp>/jev-pyd` then `uv pip install --python <tmp>/jev-pyd/bin/python 'dist/jev_frame-0.1.0-py3-none-any.whl[pydantic-ai]'` | Adapter import and `examples/pydantic_ai_decision.py` passed from outside the repository with `PYTHONPATH` unset. |
 | Distribution safety | Standard-library `zipfile` and `tarfile` inspection of both artifacts | Expected paths only and no forbidden local or secret-bearing files. |
 
 The initial attempt to run two `uv run --python` matrices concurrently was invalid because both commands rebuilt the same `.venv`.
@@ -139,10 +140,10 @@ The first run's `git_revision` field is explicitly `unknown`.
 The corrected run records base revision `a2599a9` plus the dirty JF-22 dependency and regression changes, so neither summary is mislabeled as evidence from the final commit.
 The observed Choice confidence was 0.07, which is transport evidence rather than application reliability or a calibrated action threshold.
 
-## Delivery levels and remaining gates
+## Scope of this evidence
 
 Levels A-C are supported by the contracts, the deterministic public-runtime scenarios, the complete offline matrix, clean installations, installed examples, and inspected distributions above.
 Level D is supported only for the bounded TypeSafe SDK 0.7.1, `jev-1.13.0`, `TypeSafeProvider`, `DecisionClient`, and `Runtime` smoke described above.
 Live LangChain, LangGraph, Pydantic AI, hybrid planner, fallback, consequential-effect, and other provider or model combinations remain pending.
 Level E remains application-specific and requires the host owner to accept a frozen held-out policy and operational controls.
-No package was published, deployed, released, or licensed, and no consequential real effect was attempted.
+No consequential real effect was attempted.

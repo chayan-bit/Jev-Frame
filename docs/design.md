@@ -1,13 +1,9 @@
-# Jev-Frame implementation plan for Sol
+# Jev-Frame design
 
-Prepared on 2026-09-17 against repository revision `5e99044` and the current [README](README.md).
-Extended on 2026-09-19 to make existing LLM frameworks, direct decision calls, and objective-driven hybrid planning part of the proposed scope.
-The 2026-09-19 issue-planning revision also accepts the ten developer-experience and capability additions described in Section 5.9.
-JF-01 refreshed provider and framework compatibility on 2026-09-19 and froze the initial contract documented in the README and Section 4.
-This remains an implementation handoff, not a claim that the frozen API imports exist.
-Use Sol with high reasoning effort when implementation is separately authorized.
-The 2026-09-19 implementation request authorizes local implementation, tests, local builds, regular commits, and issue updates on branch `codex/jev-frame-implementation`.
-It does not authorize pushing, pull requests, publication, deployment, licensing, paid provider calls, or consequential real effects.
+This is the original design and implementation plan for Jev-Frame 0.1.0, kept as a historical design record.
+It was prepared from 2026-09-17 to 2026-09-22 and describes the contracts, phases, and acceptance checks that the current code implements.
+Where it disagrees with the code or the README, the code and README are authoritative.
+Section references to the README point at the pre-release README, whose design content now lives in [architecture.md](architecture.md).
 
 ## 1. Outcome and scope
 
@@ -21,7 +17,7 @@ Implement the README in successive usable slices rather than treating the first 
 The complete initial target includes adaptive investigation, selective recomputation, guarded writes, typed composition, direct decision calls, optional framework adapters, hybrid LLM planning, and evaluation support.
 Integrate host-supplied LLM agents through maintained framework interfaces and test doubles; the core does not build another model transport or silently choose a provider.
 A durable database, distributed scheduler, hosted service, visual builder, and published package are outside this target.
-The ten additions in Section 5.9 are included in the initial target and tracked through `ISSUES.md`.
+The ten additions in Section 5.9 are included in the initial target.
 
 ### 1.1 Current baseline
 
@@ -38,8 +34,6 @@ The ten additions in Section 5.9 are included in the initial target and tracked 
 - There is no framework adapter, CI configuration, or selected license yet.
 - Generated environments and local build artifacts remain ignored.
 - JF-01 freezes the initial public names and signatures, the local `jev_frame` import name, run-local persistence, and host-owned acceptance thresholds.
-- `.codex/config.toml` currently contains a comment and does not enforce a model selection; the continuation note now reflects this.
-- Select Sol high explicitly when starting implementation.
 
 ### 1.2 Completion levels
 
@@ -88,7 +82,7 @@ The following is a bounded comparison of documented capabilities, not a benchmar
 The [Pydantic Graph documentation](https://ai.pydantic.dev/graph/) and [LangGraph overview](https://docs.langchain.com/oss/python/langgraph/overview) support the capability comparison.
 Their [Pydantic release history](https://github.com/pydantic/pydantic-ai/releases) and [LangGraph release history](https://github.com/langchain-ai/langgraph/releases) showed current release activity when inspected.
 No existing framework was installed or benchmarked during planning.
-Sol should confirm maintenance and compatibility during Phase 0, then stop surveying unless a specific requirement remains unmet.
+Maintenance and compatibility should be confirmed during Phase 0, then surveying stops unless a specific requirement remains unmet.
 
 ### 2.2 Frozen dependency and packaging baseline
 
@@ -730,20 +724,19 @@ Keep installation, limits, decisions, and current implementation status in the R
 ## 8. Ordered implementation work packages
 
 Every phase ends with a usable checked increment and a compact checkpoint.
-The phase sections group architectural outcomes, while `ISSUES.md` supplies the finer-grained implementation order and explicit prerequisites.
+The phase sections group architectural outcomes, while the project issue tracker supplied the finer-grained implementation order and explicit prerequisites.
 Foundations such as diagnostics, event records, and admission accounting are delivered before the full runtime and reused by later phases.
 Do not treat a later phase heading as permission to duplicate an earlier shared facility.
-The owner is Sol high; independent native delegation is optional only when separately authorized and must not become a worker hierarchy.
 Do not introduce an arbitrary time estimate as a substitute for acceptance evidence.
 If a phase is blocked on live access, complete its offline work and record the exact remaining gate.
 
-### Phase 0 — Refresh sources and freeze the contract
+### Phase 0 - Refresh sources and freeze the contract
 
 **Depends on:** explicit authorization to implement.
 
 **Actions:**
 
-1. Read the current README, AGENTS, this plan, working-tree status, and relevant uncommitted diffs.
+1. Read the current README, this plan, working-tree status, and relevant uncommitted diffs.
 2. Refresh the official SDK docs, changelog, primitive limits, native Pydantic AI Jev support, and maintained-alternative comparison.
 3. Verify SDK Python requirements and choose a specific tested version without calling the paid API.
 4. Confirm the finite supported annotation subset and boundary validation dependency.
@@ -763,7 +756,7 @@ The README now fixes the supported types, bindings, entry points, failure varian
 Read-only isolated checks imported SDK 0.7.0 and instantiated Choice, Noul, and Score on CPython 3.11.15 and 3.14.6 without provider access.
 Named-framework execution remains assigned to JF-12 and JF-13 rather than being claimed from documentation inspection.
 
-### Phase 1 — Package skeleton and typed boundaries
+### Phase 1 - Package skeleton and typed boundaries
 
 **Depends on:** Phase 0.
 
@@ -782,7 +775,7 @@ Named-framework execution remains assigned to JF-12 and JF-13 rather than being 
 Missing bindings, unsupported signatures and types, unresolved annotations, scalar coercion, conflicting IDs, invalid references, unsafe mutation metadata, invalid limits, and falsely complete usage fail before any operation.
 The suite passes against editable installs on CPython 3.11.15 and 3.14.6, and the built wheel imports without credentials or optional frameworks.
 
-### Phase 2 — Evidence and candidate state
+### Phase 2 - Evidence and candidate state
 
 **Depends on:** Phase 1.
 
@@ -802,7 +795,7 @@ Candidate snapshots preserve identity, order, coverage, retrieval provenance, an
 Evidence records preserve scope, freshness, exact source bindings, dependencies, supersession, conflicts, and completed-effect history.
 Focused tests cover T03-T09, including duplicate labels, reserved-key collisions, coverage states, deterministic fingerprints, Unicode spans, scope rejection, contradiction capacity, expiry, and selective transitive invalidation.
 
-### Phase 3 — Pure decision compiler
+### Phase 3 - Pure decision compiler
 
 **Depends on:** Phases 1–2.
 
@@ -825,7 +818,7 @@ The compiler walks backward from completion references, resolves unique register
 The candidate contract now uses explicit `Judgment.candidate_set` for dynamic Choice questions; dynamic choices cannot mix fixed criteria, add the reserved no-fit option, and count it toward the 255-option bound.
 Focused checks cover T10-T13 and the preview portion of T58, including opaque routing IDs, cycles, correlated tuple rejection, primitive limits, partially bound previews, bounded registered revisions, callback non-dispatch, deterministic no-fit, and failed retrieval.
 
-### Phase 4 — SDK adapter and offline provider checks
+### Phase 4 - SDK adapter and offline provider checks
 
 **Depends on:** Phase 3.
 
@@ -849,7 +842,7 @@ Strict batch validation covers answer completeness and type, candidate membershi
 Focused SDK mock-transport checks cover T14-T17, including unknown candidates, missing and malformed answers, NaN, bad distributions, near-zero Noul, fractional Score, throttling, retry exhaustion, timeout, authentication, cancellation, cleanup, sanitized failures, and unknown usage.
 No live request or paid provider usage was performed, so live compatibility remains explicitly unverified.
 
-### Phase 4A — Embedded decisions and portable integration
+### Phase 4A - Embedded decisions and portable integration
 
 **Depends on:** Phases 1–4.
 
@@ -892,7 +885,7 @@ Two synthetic applications bind different functions and catalogs and use the pac
 Public authoring examples use only `jev_frame` imports, and evaluator-only expected outcomes remain in a separate module that is absent from runtime definitions and provider inputs.
 Focused checks cover T57, missing and incompatible functions, duplicate capability IDs, version-only digest changes, direct operations and evaluator-label isolation without invoking live services.
 
-### Phase 5 — Read-only vertical slice
+### Phase 5 - Read-only vertical slice
 
 **Depends on:** Phase 4A and its shared admission primitives, alongside Phases 2–4.
 
@@ -917,7 +910,7 @@ Completion strictly constructs the declared output type and then requires an app
 Late answers over invalidated inputs remain historical, cost is retained, and staleness, exhaustion, unsupported completion, provider failure, and cancellation remain distinct observable outcomes.
 Focused offline checks cover T18 through T23 using deterministic provider and tool doubles; live provider compatibility remains a separate unauthorized gate.
 
-### Phase 6 — Acceptance policy and guarded writes
+### Phase 6 - Acceptance policy and guarded writes
 
 **Depends on:** Phase 5, including its Phase 4A foundations; optional framework adapters are not prerequisites.
 
@@ -943,7 +936,7 @@ An explicit string `MutationContract.idempotency_parameter` resolves the prior c
 Focused synthetic checks cover T24 through T30 and the neutral required-checkpoint foundation for T48; no real effect, live provider, database or exactly-once claim is involved.
 Real external mutations remain disabled unless separately authorized and accepted for the host application.
 
-### Phase 7 — Adaptive investigation and selective recomputation
+### Phase 7 - Adaptive investigation and selective recomputation
 
 **Depends on:** Phase 5 for read-only investigation; effectful actions additionally require Phase 6.
 
@@ -967,7 +960,7 @@ Evidence returned by an investigation uses the ordinary append-only store and ca
 `ClarificationRequest` validates a supported answer type for one missing path and returns through `RunResult.clarifications`; the host can create a fresh linked run with the answer, but the core does not persist or resume a suspended run.
 Focused synthetic checks cover T04, T31, T32 and T64, including no action, exhausted investigation budget and denied scope.
 
-### Phase 8 — Typed composition and hybrid planning
+### Phase 8 - Typed composition and hybrid planning
 
 **Depends on:** Phase 7.
 
@@ -989,7 +982,7 @@ Focused synthetic checks cover T04, T31, T32 and T64, including no action, exhau
 Both host-owned and Jev-Frame-owned loops work with a configured LLM agent; a new objective does not require a new scheduler branch or prewritten task graph.
 Provider connections are explicitly supplied by the host, and no live LLM credentials are needed for offline conformance.
 
-### Phase 9 — Inspection and host persistence boundary
+### Phase 9 - Inspection and host persistence boundary
 
 **Depends on:** Phases 5–8.
 
@@ -1007,7 +1000,7 @@ Provider connections are explicitly supplied by the host, and no live LLM creden
 Automatic restart/resume is deferred until a host persistence contract and migration policy are explicitly implemented.
 Never provide a nominal resume method that can replay writes from a trace.
 
-### Phase 10 — Evaluation and evidence of generality
+### Phase 10 - Evaluation and evidence of generality
 
 **Depends on:** Phases 5–9, with fixture design established in Phase 0.
 
@@ -1026,7 +1019,7 @@ Never provide a nominal resume method that can replay writes from a trace.
 **Acceptance:** deterministic cases pass, leakage checks pass, held-out reporting distinguishes completion and escalation, and failures are retained rather than omitted from aggregate results.
 A small synthetic suite demonstrates mechanics rather than real-world reliability.
 
-### Phase 11 — Live smoke, documentation, and local delivery
+### Phase 11 - Live smoke, documentation, and local delivery
 
 **Depends on:** Phases 1–10 for complete delivery, although a bounded live adapter smoke may be authorized earlier.
 
@@ -1038,7 +1031,6 @@ A small synthetic suite demonstrates mechanics rather than real-world reliabilit
 4. Record the actual SDK version, requested/returned model identifiers, observed usage, request count, latency, and unavailable fields.
 5. Keep real mutation testing separate from the provider smoke and require the target application's authority and acceptance evidence.
 6. Update the README with working local setup commands, supported examples, API contracts, implemented status, and precise remaining limitations.
-7. Update the Codex continuation checkpoint so it reflects actual implementation state and model selection behavior.
 8. Report tests, live checks, skipped or blocked gates, remaining risks, and exact changed files.
 9. Validate optional integrations in separate environments and, when authorized, record live LLM-plus-Jev evidence independently of the Jev-only smoke.
 
@@ -1204,195 +1196,3 @@ The framework validates structure and enforces its execution contracts, but cann
 An embeddable Python library is not a sandbox for hostile tools or policies.
 The host remains responsible for credentials, actual access enforcement, trusted tool implementations, downstream transactions, and data-retention rules.
 Do not create a database, message broker, web server, telemetry platform, general plugin registry, or second agent runtime to fill unspecified future needs.
-
-## 12. Sol execution instructions and checkpoint
-
-When the owner explicitly starts implementation, use the following handoff instruction:
-
-> Implement Jev-Frame according to the current README and IMPLEMENTATION_PLAN.md using Sol at high reasoning effort.
-> Preserve unrelated changes and inspect the current repository before editing.
-> Work through the phases in dependency order, beginning with the public contract and one complete read-only scenario.
-> Use the official TypeSafe SDK, keep all agent definitions on one shared runtime, and preserve the listed invariants.
-> Expose the standalone decision API early, reuse native framework integrations, and complete both host-owned and Jev-Frame-owned hybrid scenarios without duplicating event loops.
-> Make reversible implementation decisions without repeatedly asking for confirmation.
-> Do not publish, deploy, select a license, submit private data to a provider, incur new paid-provider usage, or enable consequential real writes without the required explicit authorization.
-> Complete offline implementation and checks while any live gate is blocked, and report the blocked gate separately.
-> Maintain a compact checkpoint, keep README implementation claims accurate, and deliver concrete acceptance evidence rather than equating a successful build with completion.
-
-At every substantive stopping point, update a compact continuation entry in `.codex/README.md` with the following fields:
-
-| Field | Required content |
-|---|---|
-| Objective | Current phase and concrete acceptance target. |
-| Decisions | Selected SDK/Python versions and any changed provisional API decisions. |
-| Changed files | Files actually edited and their responsibilities. |
-| Checks | Exact runnable checks and their observed outcomes. |
-| Failures | Reproductions, unresolved risks, and the latest hypothesis. |
-| Evidence | Local result artifacts, source references, and live request metadata where permitted. |
-| Remaining gates | Missing authorization, account access, policy calibration, or publication decisions. |
-| Next action | The next bounded implementation step. |
-
-### Planning checkpoint
-
-- Objective: produce a detailed implementation plan for Sol from the current README without starting implementation.
-- Completed: repository inspection, current TypeSafe documentation verification, a maintained-alternative survey, and an independent read-only requirements audit by Sol high.
-- Deliverables: this plan and a README link identifying it as a proposed implementation handoff.
-- Implementation state: no source code, executable examples, dependencies, tests, CI, or package artifacts created.
-- Evidence limits: no SDK installation, live Jev request, benchmark, or external mutation was performed.
-- Next action: on implementation authorization, start Phase 0 and record the tested dependency and API decisions.
-
-### Framework integration extension checkpoint — 2026-09-19
-
-- Objective: make Jev composable with existing LLM frameworks and enable objective-driven planning through a configured LLM.
-- Decisions: three usage modes, a public decision callable, optional reference integrations, one owner per loop and dispatch, and native Pydantic AI reuse where compatible.
-- Changed files: `README.md` and `IMPLEMENTATION_PLAN.md` only.
-- Completed checks: official framework documentation inspected and proposal references reconciled across API contracts, architecture, scenarios, phases, and acceptance checks.
-- Failure: direct TypeSafe documentation retrieval failed; provider facts remain dated and require refresh in Phase 0.
-- Evidence: Section 2.3 source links and new Scenarios F/G and checks T44–T55 describe the proposed integration and its verification targets.
-- Implementation state: design only; no framework imports, live model calls, implementation code, dependencies, or tests were created or executed.
-- Next action: after implementation is requested, freeze both direct and agent APIs in Phase 0 and deliver Phase 4A before completing the standalone runtime.
-
-### GitHub backlog checkpoint — 2026-09-19
-
-- Objective: incorporate F01–F10 and publish scoped Sol implementation issues with synchronized repository documentation.
-- Decisions: product scope lives in README, detailed behavioral contracts in this plan, and issue dependencies and acceptance ownership in `ISSUES.md`.
-- Coverage: Scenarios A–L and checks T01–T65 cover the existing framework and the ten additions.
-- Changed files: README, this plan, issue roadmap, and `.codex/README.md`; implementation remains unstarted.
-- Authorization: the user requested committing and pushing expanded documentation to main without a pull request.
-- Evidence: GitHub tracker #1 and implementation issues #2–#23 are published, and every posted body matches its prepared specification.
-- Verification: the 22-task prerequisite graph is acyclic and every F01–F10 feature and T01–T65 check is mapped; complete the documentation diff and remote commit checks before handoff.
-- Next action: implement the first contract issue when requested, using Sol high and the roadmap's prerequisites.
-
-### JF-01 contract freeze checkpoint — 2026-09-19
-
-- Objective: freeze the public contracts and refresh provider and host-framework compatibility without creating runtime code.
-- Decisions: Python 3.11 or newer, local import `jev_frame`, `typesafe-sdk==0.7.0`, direct `pydantic>=2.12,<3`, strict finite annotation support, ordinary explicit registrations, and the public names in README `Frozen initial contract`.
-- Compatibility: isolated imports and primitive construction passed on CPython 3.11.15 and 3.14.6 with SDK 0.7.0 and Pydantic 2.13.5; no API request was made.
-- Framework evidence: current documentation and metadata were inspected for Pydantic AI 2.46.0, LangChain 1.4.2, and LangGraph 1.2.11; executable adapter conformance remains owned by JF-12 and JF-13.
-- Contract coverage: README walks Scenarios A-L and specifies direct decisions, agent runs, planner variants, bindings, evidence, policy, authorization, events, fixtures, splits, and failure behavior.
-- Remaining gates: package/runtime implementation starts at JF-02, live provider compatibility requires separate authorization, licensing remains undecided, and no publication is authorized.
-- Next action: create the minimal package manifest and typed definition boundaries for JF-02, then prove T01 and T02 offline.
-
-### JF-12 LangChain and LangGraph integration checkpoint — 2026-09-19
-
-- Objective: expose direct Jev decisions and exact-action checkpoints through the recorded LangChain 1.4.2 and LangGraph 1.2.11 public interfaces without adding another scheduler.
-- Decisions: the optional `langchain` extra owns both pinned host dependencies, `ToolRuntime` carries non-model host context, `ToolNode` remains the dispatcher, and the required node always reconstructs and checks the current action proposal.
-- Verification: offline tests invoke real `StateGraph` and `ToolNode` interfaces, preserve the full `DecisionResult` artifact, reject forged scope and provider failure, propagate cancellation, count one provider attempt, permit an omitted optional tool, reject a failed checkpoint, and invalidate an older checkpoint after changed arguments.
-- Core boundary: `jev_frame` imports without either optional framework, and the adapter is loaded only from `jev_frame.integrations.langchain`.
-- Remaining gates: no live model, hosted LangGraph service, application authorization, business mutation, publication, or deployment was exercised or authorized.
-
-### JF-13 Pydantic AI integration checkpoint — 2026-09-19
-
-- Objective: expose direct Jev decisions and exact-output checkpoints through Pydantic AI 2.46.0 while using its native TypeSafe support only where the translated semantics remain observable.
-- Decisions: the optional `pydantic-ai` extra uses `pydantic-ai-slim[typesafe]`, host state stays in `RunContext.deps`, compact tool results use `ToolReturn.return_value`, complete Jev records use private `ToolReturn.metadata`, and required output functions perform their own exact-action checkpoint instead of relying on function-tool hooks.
-- Native reuse: scripted `TypeSafeModel` conformance preserves a bounded Noul probability, returns the nearest rubric level while retaining the fractional score and distribution, and leaves usage partial or unknown when the real Jev request count is absent.
-- Verification: offline tests invoke real `Agent`, `FunctionModel`, `Tool`, `ToolOutput`, and `TypeSafeModel` interfaces; cover optional skip, Noul and Score records, hidden scope, provider failure, cancellation, changed output, rejected checkpoint, special output-tool placement, and fallback usage omission.
-- Remaining gates: no live TypeSafe or fallback model, application authorization, business mutation, publication, or deployment was exercised or authorized.
-
-### JF-14 existing-tool import and discovery checkpoint — 2026-09-19
-
-- Objective: import explicitly supplied host tools and retrieve bounded capability candidates without scanning packages, opening sessions, or inferring authority from foreign schemas.
-- Decisions: catalog queries filter scope before deterministic text matching, candidate keys bind catalog, tool, descriptor version, schema digest and scope, complete empty snapshots mean no-fit, and expansion remains bounded by the catalog maximum.
-- Activation: application metadata must supply every binding, effect, evidence declaration and scope requirement before an ordinary `Tool` is created; changed schemas invalidate selections and the shared runtime owns the one admitted dispatch.
-- Schema boundary: only closed finite JSON Schema structures that map losslessly to the frozen type subset are accepted; foreign mutations require an application-authored Jev `Tool` because their receipt and reconciliation contract cannot be inferred from schemas.
-- Verification: focused offline checks use a fake configured MCP session and a real LangChain tool with no remote service, and cover missing semantics, scope isolation, truncation, no-fit, bounded expansion, malformed schemas, stale versions, strict runtime dispatch, errors and cancellation.
-- Remaining gates: no real MCP server, remote framework service, credentials, business mutation, semantic catalog selection, publication, or deployment was exercised or authorized.
-
-### JF-15 typed composition checkpoint — 2026-09-19
-
-- Objective: expose an `AgentDefinition` as a typed capability that reuses the same runtime while isolating child evidence and bounding shared authority, depth, count, deadline and usage.
-- Decisions: child scope and authority equal the parent's values, host dependencies and evidence are explicit allowlists, only the child read/export intersection is projected, active definition ancestry rejects cycles, and imported evidence receives run-scoped identities.
-- Accounting: child wrappers admit a child identity but hold no operation or semaphore reservation, underlying provider, tool and write attempts remain in the shared atomic ledger, and child usage aggregates are added once to the parent result rather than to the ledger again.
-- Outcomes: completed child values enter normal parent evidence, unresolved findings remain partial, conflicting specialists remain separate, child attempts cannot supersede parent evidence, and cancelled ambiguous effects import their `OUTCOME_UNKNOWN` execution references before cancellation propagates.
-- Verification: focused synthetic tests cover exact scope and evidence intersection, cycles, depth and count exhaustion, one-slot execution, concurrent attempt identities, contradictory findings, parent completion rejection, unresolved provenance, cancellation and an admitted synthetic child mutation with an unknown outcome.
-- Remaining gates: no live provider, consequential real effect, distributed worker, durable cross-run resume, publication, or deployment was exercised or authorized.
-
-### JF-16 hybrid planning checkpoint — 2026-09-19
-
-- Objective: run unfamiliar objectives through bounded typed plans, actual-outcome replanning, host acceptance, and a propose-filter-select recipe without giving generated text execution authority.
-- Decisions: one asynchronous callable owns planner generation, every step names a registered capability, generated values are distinct from evidence and completed-step references, the shared runtime owns dispatch, and the host owns final semantic acceptance.
-- Limits: planner calls and revisions use stable identities in the shared atomic ledger, unchanged plan fingerprints stop no-progress loops, and missing provider usage remains unknown rather than zero.
-- Outcomes: invalid plans return typed validation outcomes without dispatch, failed step outcomes return to the planner, clarification and handoff remain explicit, and a final proposal completes only after strict output validation and the host acceptance predicate.
-- Frameworks: real LangChain `RunnableLambda` and Pydantic AI `Agent` plus `FunctionModel` interfaces drive the planner offline while Jev-Frame retains dispatch and completion ownership.
-- Verification: six focused core tests and two optional-framework tests cover an unseen three-step objective, changed retrieval, invented tools and evidence, no-progress, rejected completion, one-time specialist effects, zero-survivor no-fit, and one admitted Jev selection.
-- Remaining gates: no live planner, live TypeSafe request, consequential real effect, application acceptance calibration, publication, or deployment was exercised or authorized.
-
-### Correctness audit checkpoint — 2026-09-20
-
-- The objective was to repair the eleven reported validation, scope, evidence, execution, reconciliation, and planning boundary defects without expanding the roadmap.
-- Commits `755454f`, `5005ab8`, `f37a95d`, `10cd337`, and `9fc7d1c` contain the implementation and focused regressions.
-- The shared boundaries now enforce exact literal types, detached immutable candidate snapshots, exact imported activation scope, MCP protocol errors, current completion evidence, final mutation revalidation, preserved unknown reconciliation evidence, trusted no-effect reconciliation, planner fixed arguments, callback deadlines, and consistent run identities.
-- `StepValue` and `depends_on` remain revision-local by contract, while cross-turn reuse resolves the prior `StepOutcome.evidence_ref` through `EvidenceValue`.
-- The full 119-test suite passes under CPython 3.11 and 3.14 with all optional integrations, Ruff and mypy pass, all offline examples pass, both distribution artifacts build, and an isolated core-only wheel import passes.
-- The supplied audit probes now fail closed or return the documented unresolved or failed states, with one expected early `InputValidationError` proving the strict-Literal boundary.
-- No live model, consequential external write, application acceptance calibration, publication, deployment, push, pull request, or GitHub issue mutation was exercised under the audit authorization.
-
-### JF-17 artifact verification checkpoint — 2026-09-22
-
-- The objective was to compose registered artifact generation, deterministic validation, Jev semantic assessment, and bounded revision without adding another scheduler or executing generated code.
-- `GenerateVerifyRecipe` uses the existing `PlannerEngine`, runtime executor, evidence store, direct decision client, ledger, deadlines, and cancellation chain.
-- Every detached `ArtifactRevision` records a stable digest, generator identity and version, source references, and a run-scoped evidence record.
-- Required deterministic failures and errors block semantic assessment and completion, while structured revision-specific findings become the next generator prompt.
-- Completion requires current check and source evidence for the latest revision plus declared passing support for every required field.
-- Four focused synthetic tests cover exact failure followed by successful revision, a required-check exception with no semantic dispatch, recomputation of an earlier passing check after revision, identical-output no-progress, and shared usage accounting.
-- The complete offline suite passes all 123 tests, the focused artifact suite also passes on CPython 3.11, Ruff passes `src`, `tests`, and `examples`, and mypy passes all 18 source files.
-- No live provider, generated-code execution, consequential external effect, publication, deployment, or package release was exercised.
-
-### JF-18 document collection checkpoint — 2026-09-22
-
-- The objective was to assess claims over bounded injected retrieval while retaining exact source versions, passage offsets, contradictory evidence, and collection coverage.
-- `DocumentCollectionWorkflow` accepts only a host-supplied paged retriever, immutable `DocumentRecord` inputs, and the shared direct decision client; it adds no retrieval infrastructure.
-- Passage identities contain document ID, version, and half-open Python Unicode code-point offsets, so repeated text and duplicate titles do not collapse provenance.
-- Every passage is checked against the retained source before assessment, and changed versions or incorrect offsets fail without provider dispatch.
-- Individual support, refutation, and unknown decisions remain separate, simultaneous support and refutation produces a source-conflict record, and no probability product or cross-batch score is computed.
-- Three focused synthetic tests cover multi-page complete retrieval, Unicode and repeated passages, opposing sources, truncated coverage, and stale versions.
-- The complete offline suite passes all 126 tests, Ruff passes `src`, `tests`, and `examples`, and mypy passes all 19 source files.
-- No live provider, crawler, parser, vector database, external search service, publication, or deployment was exercised.
-
-### JF-19 sanitized replay checkpoint — 2026-09-22
-
-- The objective was to turn explicitly permitted run records into deterministic regression fixtures without repeating provider calls or external effects.
-- `capture_fixture` accepts only named public events, predeclared call scripts, and exact source snapshots selected by `CaptureAllowlist`; it never accepts an arbitrary runtime or host-dependency dump.
-- The versioned manifest preserves stable aliases, operation identities, argument fingerprints, source versions, scripted results, and material redaction or unavailable-field declarations.
-- `OfflineReplay` fails closed on incomplete material evidence, unknown versions, unexpected call order, changed inputs, changed tool identity, or unconsumed calls, and it has no live fallback.
-- Mutation doubles retain their declared effect but return the recorded typed receipt without invoking the original callable, while evaluator annotations remain a separate object that cannot enter fixture runtime inputs.
-- Finding comparison is deterministic, and fresh reevaluation requires a separately supplied operation plus explicit model, policy version, and limits.
-- Five focused synthetic tests cover allowlist sanitization, evaluator isolation, deterministic provider replay, incomplete evidence, unknown versions, mismatched calls, mutation isolation, finding diffs, and explicit reevaluation.
-- The complete offline suite passes all 131 tests, Ruff passes `src`, `tests`, and `examples`, and mypy passes all 20 source files.
-- No live provider, original business mutation, durable resume, production trace export, paid evaluation, publication, or deployment was exercised.
-
-### JF-20 offline evaluation checkpoint — 2026-09-22
-
-- The objective was to compare public Jev-Frame and host operations on synthetic cases while keeping evaluator labels outside every runtime input.
-- `EvaluationTask` contains only the allowlisted task projection, lineage, split, group, permitted evidence, capability identities, scope, limits, and honest seed availability, while `EvaluationCriteria` is passed only after each operation returns.
-- `run_evaluations` invokes host-supplied public-operation callbacks, fails closed when evaluator-only sentinels appear in captured provider, tool, or planner inputs, and sanitizes callback exceptions into service-failure categories.
-- Reports preserve per-case negative results and requested or returned version metadata while computing supported completion, correct escalation, harmful automatic error, unnecessary handoff, retrieval failure, service failure, latency, cost, and semantic configuration burden.
-- Mechanically related variants share one source-group denominator, positive group outcomes require every variant to pass, negative categories retain any observed failure, and zero denominators return undefined rates.
-- `EvaluationAccounting.from_ledger` counts each shared operation once, ignores estimates and released reservations, and marks missing foreign host usage as incomplete instead of zero.
-- Four focused synthetic tests cover a real direct-decision comparison, evaluator leakage refusal, repeated groups, unfamiliar capability combinations, missing foreign usage, zero denominators, all failure categories, and sanitized service errors.
-- The complete offline suite passes all 135 tests, the four focused checks also pass on CPython 3.11, Ruff passes `src`, `tests`, and `examples`, and mypy passes all 21 source files.
-- No paid benchmark, live provider, consequential effect, private dataset, automatic policy promotion, publication, or deployment was exercised.
-
-### JF-21 policy calibration checkpoint — 2026-09-22
-
-- The objective was to help an application owner compare bounded policy candidates on validation data, freeze the selected configuration, and inspect advisory shadow choices without enabling them.
-- `calibrate_policies` passes only validation-split observations to the host selector and returns a proposed artifact rather than changing any runtime policy.
-- The artifact freezes policy identity, evaluation and manifest versions, full and validation digests, model identity, judgment versions, retrieval configuration, and dataset versions before held-out evaluation.
-- `evaluate_frozen_policy` rejects any changed frozen field and applies only the selected candidate to the held-out split without invoking the validation selector again.
-- Evaluator corrections remain separate pending-review records and do not alter labels, candidates, or active behavior automatically.
-- `run_shadow_comparison` preserves actual observations, reports alternative-action downstream outcomes as unknown, retains unknown usage, and uses a `ShadowExecutor` that rejects every tool dispatch before the callable runs.
-- Five focused synthetic tests cover validation-only selection, frozen held-out identity, missing validation data, proposed-only artifacts and corrections, unknown counterfactuals, unknown usage, and rejected mutation dispatch.
-- The complete offline suite passes all 140 tests, the five focused checks also pass on CPython 3.11, Ruff passes `src`, `tests`, and `examples`, and mypy passes all 22 source files.
-- No active policy changed, no business tool ran in shadow mode, and no live provider, customer data, online learning, paid evaluation, publication, or deployment was exercised.
-
-### JF-22 delivery checkpoint — 2026-09-22
-
-- The complete offline suite passes all 142 tests on CPython 3.11.15 and 3.14.6, and Ruff and mypy pass across the implementation, tests, and examples.
-- A focused T38 regression now proves plan dependency cycles and planner-proposed mutations fail before dispatch.
-- The official SDK pin is 0.7.1, with an offline regression proving malformed keys fail before transport and supplied key material is absent from public errors and client representations.
-- Fresh core-only, LangChain and LangGraph, and Pydantic AI wheel environments import their intended surfaces and run every documented example through installed `jev_frame` imports.
-- The wheel and source distribution contain no local environments, Codex state, VCS data, bytecode, live evidence, or credential files.
-- `DELIVERY_EVIDENCE.md` maps Scenarios A-L and T01-T65 to exact checks and records the build, installations, versions, and remaining gates.
-- Seven authorized synthetic requests support a bounded Level D smoke for TypeSafe SDK 0.7.1 and `jev-1.13.0` through `TypeSafeProvider`, `DecisionClient`, and `Runtime`; the low-confidence Choice observation is not application acceptance evidence.
-- Live optional-framework, hybrid-planner, fallback, and consequential-effect combinations remain pending, and Level E remains application-specific.
-- No package publication, release, deployment, visibility change, licensing decision, or consequential real effect occurred.
