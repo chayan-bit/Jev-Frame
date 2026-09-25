@@ -12,5 +12,3 @@ __pycache__/
 build/
 dist/
 *.egg-info/
-.codex/local/
-.codex/runs/

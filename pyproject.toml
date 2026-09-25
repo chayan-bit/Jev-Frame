@@ -8,6 +8,23 @@ version = "0.1.0"
 description = "Typed Jev decisions and an optional shared agent runtime"
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Chayan Aggarwal" }]
+keywords = ["jev", "typesafe", "llm", "agents", "decisions", "pydantic", "langchain", "pydantic-ai"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Typing :: Typed",
+]
 dependencies = [
   "pydantic>=2.12,<3",
   "typesafe-sdk==0.7.1",
@@ -22,5 +39,19 @@ pydantic-ai = [
   "pydantic-ai-slim[typesafe]==2.46.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/chayan-bit/Jev-Frame"
+Repository = "https://github.com/chayan-bit/Jev-Frame"
+Issues = "https://github.com/chayan-bit/Jev-Frame/issues"
+
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+jev_frame = ["py.typed"]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.3.1",
+    "ruff>=0.16.9",
+]
