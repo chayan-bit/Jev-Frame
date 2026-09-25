@@ -33,10 +33,10 @@ dependencies = [
 [project.optional-dependencies]
 langchain = [
   "langchain==1.4.2",
-  "langgraph==1.2.11",
+  "langgraph==1.2.12",
 ]
 pydantic-ai = [
-  "pydantic-ai-slim[typesafe]==2.46.0",
+  "pydantic-ai-slim[typesafe]==2.47.0",
 ]
 
 [project.urls]
