@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jev-frame"
-version = "0.1.0"
+version = "0.1.1"
 description = "Typed Jev decisions and an optional shared agent runtime"
 readme = "README.md"
 requires-python = ">=3.11"
