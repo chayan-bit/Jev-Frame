@@ -42,8 +42,8 @@ Execution remains bounded by provider capacity, tool limits, budgets, and permis
 ## Intended developer experience
 
 Python is the first implementation language.
-The initial public names and behavioral contracts below are the 0.1.0 API.
-They may change only through a documented contract revision that updates affected tests and compatibility notes.
+The public names and behavioral contracts below are the 0.1.0 API.
+Breaking changes are called out in the [changelog](../CHANGELOG.md) and follow semantic versioning.
 
 A developer should be able to:
 
@@ -59,17 +59,17 @@ A developer should be able to:
 Simple agents should require little configuration.
 Advanced applications should be able to control candidate providers, decision dependencies, persistence, and acceptance policy through the same runtime.
 
-## Initial contract
+## Public contract
 
-This section describes the initial 0.1.0 public contract surface.
+This section describes the public contract surface as of 0.1.0.
 
 ### Compatibility baseline
 
-| Component | Initial contract | Local verification through 2026-09-22 |
+| Component | Contract | Verified behavior |
 |---|---|---|
-| Python | Support Python 3.11 and newer; the delivery issue records the exact tested matrix. | The complete offline suite passes on CPython 3.11.15 and 3.14.6. |
+| Python | Support Python 3.11 and newer. | CI runs the complete offline suite on CPython 3.11 and 3.14. |
 | TypeSafe SDK | Use the official `typesafe-sdk==0.7.1` transport and response models. | SDK 0.7.1 validates malformed keys before transport and excludes key material from public exception and client representations; no provider call is needed for this check. |
-| Boundary validation | Declare Pydantic directly as `pydantic>=2.12,<3` and use strict `TypeAdapter` validation. | The locked delivery environment resolves Pydantic 2.13.5. |
+| Boundary validation | Declare Pydantic directly as `pydantic>=2.12,<3` and use strict `TypeAdapter` validation. | The checked-in lockfile resolves Pydantic 2.13.5. |
 | LangChain and LangGraph | Optional extra `jev-frame[langchain]`; target the public tool, `ToolRuntime`, node, and agent interfaces in LangChain 1.4.2 and LangGraph 1.2.11. | Offline conformance invokes a real `ToolNode` and `StateGraph`, keeps host context out of the model-visible schema, preserves the full result artifact, and leaves execution ownership with the host. |
 | Pydantic AI | Optional extra `jev-frame[pydantic-ai]`; target Pydantic AI Slim 2.46.0 with its TypeSafe extra and reuse `TypeSafeModel` where its translated metadata is sufficient. | Offline conformance exercises `FunctionModel`, `Tool`, `ToolReturn`, `ToolOutput`, and a scripted native `TypeSafeModel` without credentials. |
 
@@ -84,7 +84,7 @@ Jev-Frame therefore uses the official SDK adapter for canonical `ChoiceAnswer`, 
 
 ### Supported values and strict validation
 
-The initial supported application type subset is `str`, `int`, `float`, `bool`, `None`, string-valued `Enum`, `Literal`, `list[T]`, `dict[str, T]`, `T | None`, dataclasses, and Pydantic `BaseModel` records composed from the same subset.
+The supported application type subset is `str`, `int`, `float`, `bool`, `None`, string-valued `Enum`, `Literal`, `list[T]`, `dict[str, T]`, `T | None`, dataclasses, and Pydantic `BaseModel` records composed from the same subset.
 Integers and booleans remain distinct, mapping keys must be strings, arbitrary objects are rejected, and only `T | None` is accepted as a general union.
 `Literal` members use their exact scalar types, so `True` cannot satisfy `Literal[1]` and `1` cannot satisfy `Literal[True]`.
 Unresolved annotations, variadic parameters, positional-only parameters, unsupported generics, and callable return annotations outside this subset are definition errors.
@@ -136,7 +136,7 @@ decision = await decision_client.evaluate(judgment, inputs, decision_context)
 `DecisionClient.evaluate` compiles one judgment, admits its provider attempts atomically, records provider usage once per batch, writes a `ModelJudgment` into an injected `EvidenceStore` when supplied, and returns an unassessed `DecisionResult`.
 `select` resolves the returned opaque key against the exact snapshot and handles empty complete snapshots deterministically without a provider call.
 No-fit over truncated or unknown coverage carries an incomplete-coverage result and expansion reference rather than claiming global absence.
-`filter` preserves every item identity and returns accepted, rejected, unassessed, or unresolved per-item outcomes using an explicit host classifier; the initial implementation uses separately accounted requests rather than combining distinct views.
+`filter` preserves every item identity and returns accepted, rejected, unassessed, or unresolved per-item outcomes using an explicit host classifier; the current implementation uses separately accounted requests rather than combining distinct views.
 `assess` preserves Noul probability, `score` preserves fractional ordered Score output, and `extract_source` copies an exact current field or Unicode code-point span without a provider request.
 `as_callable` closes over provider identity and credentials so host frameworks need expose only typed inputs and context.
 
@@ -169,7 +169,7 @@ Definition and caller-input errors fail before dispatch, provider and response-v
 `CandidateSet` is an immutable ordered snapshot with opaque keys, model-visible descriptions, execution-only values, source versions, retrieval parameters, coverage, and an optional bounded expansion reference.
 Snapshot construction recursively detaches and freezes lists and mappings, and it rejects mutable dataclass and Pydantic model values instead of retaining caller-owned mutable state.
 `CapabilityPackage` is an explicit versioned group of definitions and bindable application functions; identifier collisions fail instead of replacing registrations.
-Candidate providers now declare bindings for every typed function parameter, using the same task-input, host-context, constant, and default sources as other registered capabilities.
+Candidate providers declare bindings for every typed function parameter, using the same task-input, host-context, constant, and default sources as other registered capabilities.
 Package IDs and versions are serialized into the compiled program and therefore affect its canonical digest even when inner definitions are unchanged.
 
 `bind_document_evidence_package` binds typed retrieval and read functions to one generic package containing document selection, exact document reading, exact text-field extraction, and claim assessment.
@@ -237,7 +237,7 @@ It returns exactly one of `PlanStep`, `PlanRevision`, `ClarificationRequest`, `P
 Generated plans can reference only registered capability IDs and declared generated-value slots, and they pass normal compilation and authority checks before admission.
 
 Evidence records share `id`, `kind`, typed value or retained reference, source ID, scope, observation time, optional expiry, source version, and dependency IDs.
-Concrete kinds are `Observation`, `Derivation`, `JudgmentRecord`, `AcceptanceRecord`, `AuthorizationRecord`, `ExecutionRecord`, and `ChildFinding`.
+Concrete record types are `Observation`, `Derivation`, `ModelJudgment`, `AcceptanceEvidence`, and `ExecutionReference`.
 Contradictory records are linked rather than overwritten, and an evidence view either includes required conflicts or reports insufficient capacity.
 Events use schema version `jev-frame.event.v1`, monotonically increasing run-local sequence numbers, correlation IDs, public reason codes, and allowlisted data only.
 The implemented direct and runtime paths emit operation-started, attempt-admitted, operation-completed, operation-unresolved, operation-failed, and operation-cancelled events and propagate cancellation after recording an inspectable cancelled result.
@@ -255,7 +255,9 @@ The component that dispatches a tool owns its retry policy and effect accounting
 Jev-Frame controls only work admitted through its boundary, and combined usage remains incomplete when the host cannot expose all attempts.
 Semantic acceptance, evidence sufficiency, candidate selection, and execution authority are separate records even when one application policy consumes all four.
 
-### Scenario contract walkthrough
+### Reference scenarios
+
+The offline test suite exercises each of these scenarios end to end.
 
 | Scenario | Input and decision path | Successful result | Required failure behavior |
 |---|---|---|---|
@@ -274,10 +276,10 @@ Semantic acceptance, evidence sufficiency, candidate selection, and execution au
 
 ### Evaluation fixtures and policy ownership
 
-Fixture IDs use `JF-<scenario>-<group>-<case>-v<version>` and every variant carries a stable source-group ID so repeated variants are not counted as independent samples.
-The initial synthetic manifest assigns policy-tuning variants to `validation`, mechanically similar variants from the same source group to the same split, and separately authored variants to `held_out`.
+Give every fixture a stable, versioned ID, and give every variant a stable source-group ID so repeated variants are not counted as independent samples.
+The synthetic manifest in the test suite assigns policy-tuning variants to `validation`, mechanically similar variants from the same source group to the same split, and separately authored variants to `held_out`.
 Expected answers, harmful-error labels, and evaluator notes live only in evaluator records passed after a run.
-Policy versions use `policy:<package-id>:<major>.<minor>.<patch>` and record the validation manifest digest, judgment versions, model selection, and retrieval configuration.
+A frozen policy artifact records the policy version, the validation manifest digest, judgment versions, model identity, and a digest of the retrieval configuration.
 The application owner chooses acceptable thresholds and authorizes any promotion; Jev-Frame only measures and freezes the selected policy.
 
 ## Working with existing LLM frameworks
@@ -320,7 +322,7 @@ The developer decides which judgments are useful rather than paying for Jev on e
 
 ### Integration targets and reuse
 
-The first reference integrations should cover LangChain/LangGraph and Pydantic AI, with ordinary asynchronous Python callables as the portable baseline.
+The reference integrations cover LangChain/LangGraph and Pydantic AI, with ordinary asynchronous Python callables as the portable baseline.
 [LangChain tools](https://docs.langchain.com/oss/python/langchain/tools) provide callable integration points, and [LangGraph](https://docs.langchain.com/oss/python/langgraph/workflows-agents) supports agent loops and explicit workflow nodes.
 [Pydantic AI function tools](https://pydantic.dev/docs/ai/tools-toolsets/tools/) provide another callable boundary.
 Pydantic AI already documents a [native TypeSafe/Jev integration](https://pydantic.dev/docs/ai/models/typesafe/), including model routing and LLM fallback patterns.
@@ -360,7 +362,7 @@ Host checkpointing does not automatically make Jev-Frame state resumable or exte
 
 ## Developer experience and capability baseline
 
-The following ten features are accepted design requirements for the initial implementation backlog; their implementation state advances through the issue roadmap.
+All ten features below are implemented in 0.1.0.
 They compose over the same decision API, evidence model, and runtime rather than introducing independent agent engines.
 
 | Feature | Required developer-facing behavior | Boundary |
@@ -376,7 +378,6 @@ They compose over the same decision API, evidence model, and runtime rather than
 | Useful investigation | Choose among evidence retrieval, corroboration, refresh, specialist calls, or a precise clarification request. | Bound attempts and stop unchanged cycles; host-managed continuation handles clarification responses. |
 | Generate and verify | Generate an artifact, apply deterministic and configured semantic checks, and revise against actionable findings. | Deterministic failures cannot be overridden by model confidence; arbitrary generated code is not executed by the core. |
 
-Begin with callable decision operations, diagnostics, and framework adapters, then reuse these for the complete agent runtime and hybrid recipes.
 Recorded replay is a test facility, distinct from restarting a live workflow or resuming a pending external write.
 Document processing remains a generic capability package with injected retrieval; the core does not acquire a vector database or crawler.
 Tool discovery works within host-supplied registrations and does not scan installed packages or connect to arbitrary remote servers.
@@ -398,7 +399,7 @@ The host continues to own MCP transport, credentials, approvals, retries, and se
 
 ## Public concept responsibilities
 
-These concepts summarize the initial API responsibilities.
+These concepts summarize the API responsibilities.
 
 | Concept | Developer responsibility | Framework responsibility |
 |---|---|---|
@@ -455,7 +456,7 @@ They cannot prove that a natural-language policy is correct or unambiguous.
 It places dependent judgments in later evaluation stages, keeps applicability separate, validates exact registered capability revisions, and rejects cycles, ambiguous producers, unsafe tuple bindings, result-contract mismatches, and provider-limit violations.
 `preview_agent` returns the same compiled program as stable JSON-compatible data with questions, model-visible candidate metadata, argument sources, unresolved inputs, and precise diagnostics.
 Typed candidate values, host dependency values, and callable objects are not serialized into the preview.
-Dynamic Choice questions add the reserved no-fit option and count it toward the 255-option limit; Score rubrics are limited to 2–10 levels.
+Dynamic Choice questions add the reserved no-fit option and count it toward the 255-option limit; Score rubrics are limited to 2 to 10 levels.
 Empty complete snapshots resolve to deterministic no-fit without a provider question, while failed retrieval remains a distinct blocked input.
 
 ### Provider adapter
@@ -522,7 +523,7 @@ Bound concurrency, propagate cancellation, detect cycles, and preserve conflicti
 
 `Runtime.agent_as_tool` wraps an existing `AgentDefinition` as an ordinary typed `Tool` whose call reuses the same runtime, provider adapter, ledger, deadline, authorizer, and cancellation chain.
 `ChildRunPolicy` names the exact child scope, the evidence the parent may export, the subset the child may read, and the host-dependency keys it may inherit.
-Initial scope intersection is deliberately conservative: the child must use the parent's exact scope and authority context, and it cannot supply or widen either value.
+Scope intersection is deliberately conservative: the child must use the parent's exact scope and authority context, and it cannot supply or widen either value.
 The runtime projects only permitted current evidence into an isolated child store, passes only declared host dependencies, and imports new child records under run-scoped identities with their dependencies and conflicts intact.
 A child cannot supersede parent evidence, and an unresolved or cancelled child retains imported partial findings and uncertain execution records without completing the parent.
 The shared ledger admits each child identity once, enforces total child-count and depth limits, and counts underlying provider, tool, and write attempts only where they actually run.
@@ -569,7 +570,7 @@ The core should contain reusable agent machinery, not application-specific busin
 Domain packages should supply their own tools, vocabularies, policies, and completion contracts.
 The host application should supply authorization, tenant scope, storage, and permission for side effects.
 
-The initial design does not require a new database, distributed queue, model gateway, multi-language runtime, visual builder, or hosted service.
+The design does not require a new database, distributed queue, model gateway, multi-language runtime, visual builder, or hosted service.
 Add such components only when concrete use cases justify them.
 
 ## Evaluation principles
