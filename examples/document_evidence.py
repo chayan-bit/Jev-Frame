@@ -81,3 +81,8 @@ if __name__ == "__main__":
         first.capabilities.candidate_providers[0].function
         is not second.capabilities.candidate_providers[0].function
     )
+    for package in (first, second):
+        provider = package.capabilities.candidate_providers[0].function
+        print(f"{package.id} {package.version} -> {provider.__name__}")
+    print(f"judgments: {first.selection.id}, {first.assessment.id}")
+    print("One package definition, two host catalogs, no core changes.")
