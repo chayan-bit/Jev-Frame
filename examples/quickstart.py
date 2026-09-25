@@ -15,6 +15,7 @@ from jev_frame import (
     Judgment,
     NoulAnswer,
     NoulQuestion,
+    PrimitiveAnswer,
     ProviderAttempt,
     ProviderBatch,
     RunLimits,
@@ -24,9 +25,26 @@ from jev_frame import (
 )
 from jev_frame.compiler import CompiledQuestion
 
+# Every class of work needs an explicit finite budget; zero disables it.
+LIMITS = RunLimits(
+    provider_attempts=1,
+    submitted_questions=1,
+    tool_attempts=0,
+    investigation_steps=0,
+    concurrent_operations=1,
+    writes=0,
+    planner_calls=0,
+    plan_revisions=0,
+    child_depth=0,
+    child_runs=0,
+)
+
 
 class OfflineProvider:
     """Answers every yes/no (Noul) question with probability 0.9."""
+
+    def answer(self, question: CompiledQuestion) -> PrimitiveAnswer:
+        return NoulAnswer(0.9)
 
     async def evaluate(
         self,
@@ -44,7 +62,7 @@ class OfflineProvider:
             if inspect.isawaitable(admitted):
                 await admitted
         return ProviderBatch(
-            {question.routing_id: NoulAnswer(0.9) for question in questions},
+            {question.routing_id: self.answer(question) for question in questions},
             requested_model,
             "offline-model",
             None,
@@ -61,22 +79,10 @@ async def main() -> None:
         NoulQuestion("Is the statement clear?"),
         (Subject("statement"),),
     )
-    limits = RunLimits(
-        provider_attempts=1,
-        submitted_questions=1,
-        tool_attempts=0,
-        investigation_steps=0,
-        concurrent_operations=1,
-        writes=0,
-        planner_calls=0,
-        plan_revisions=0,
-        child_depth=0,
-        child_runs=0,
-    )
     result = await client.evaluate(
         judgment,
         DecisionInputs("q-1", {"statement": "Typed boundaries are explicit."}),
-        DecisionContext("quickstart", time.monotonic() + 30.0, limits),
+        DecisionContext("quickstart", time.monotonic() + 30.0, LIMITS),
     )
     print(result.answer, result.returned_model, result.usage.submitted_questions)
 
