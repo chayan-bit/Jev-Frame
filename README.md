@@ -47,14 +47,14 @@ Jev-Frame requires Python 3.11 or newer.
 It is not published on PyPI yet, so install it from a tagged Git revision:
 
 ```sh
-pip install "jev-frame @ git+https://github.com/chayan-bit/Jev-Frame@v0.1.0" # x-release-please-version
+pip install "jev-frame @ git+https://github.com/chayan-bit/Jev-Frame@v0.1.1" # x-release-please-version
 ```
 
 Optional integrations are available as extras:
 
 ```sh
-pip install "jev-frame[langchain] @ git+https://github.com/chayan-bit/Jev-Frame@v0.1.0" # x-release-please-version
-pip install "jev-frame[pydantic-ai] @ git+https://github.com/chayan-bit/Jev-Frame@v0.1.0" # x-release-please-version
+pip install "jev-frame[langchain] @ git+https://github.com/chayan-bit/Jev-Frame@v0.1.1" # x-release-please-version
+pip install "jev-frame[pydantic-ai] @ git+https://github.com/chayan-bit/Jev-Frame@v0.1.1" # x-release-please-version
 ```
 
 The `langchain` extra installs LangChain and LangGraph, and the `pydantic-ai` extra installs Pydantic AI Slim with its TypeSafe model.
