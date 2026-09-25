@@ -43,6 +43,8 @@ pydantic-ai = [
 Homepage = "https://github.com/chayan-bit/Jev-Frame"
 Repository = "https://github.com/chayan-bit/Jev-Frame"
 Issues = "https://github.com/chayan-bit/Jev-Frame/issues"
+Documentation = "https://github.com/chayan-bit/Jev-Frame/tree/main/docs"
+Changelog = "https://github.com/chayan-bit/Jev-Frame/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["src"]
