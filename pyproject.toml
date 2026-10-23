@@ -27,16 +27,16 @@ classifiers = [
 ]
 dependencies = [
   "pydantic>=2.12,<3",
-  "typesafe-sdk==0.7.1",
+  "typesafe-sdk==0.7.5",
 ]
 
 [project.optional-dependencies]
 langchain = [
-  "langchain==1.4.2",
-  "langgraph==1.2.12",
+  "langchain==1.4.6",
+  "langgraph==1.2.16",
 ]
 pydantic-ai = [
-  "pydantic-ai-slim[typesafe]==2.47.0",
+  "pydantic-ai-slim[typesafe]==2.57.0",
 ]
 
 [project.urls]
